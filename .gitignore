@@ -1,3 +1,7 @@
 build/*
-.project
 a.out
+
+.project
+.cproject
+.settings/*
+
