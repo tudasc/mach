@@ -11,6 +11,6 @@ target_compile_features(msg_order_relax_checker PRIVATE cxx_range_for cxx_auto_t
 # LLVM is (typically) built with no C++ RTTI. We need to match that;
 # otherwise, we'll get linker errors about missing RTTI data.
 set_target_properties(msg_order_relax_checker PROPERTIES
-    COMPILE_FLAGS "-fno-rtti"
+    COMPILE_FLAGS "-fno-rtti -Wall -Wextra -Wno-unused-parameter -g"
 )
 
