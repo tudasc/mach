@@ -1,6 +1,8 @@
 add_library(msg_order_relax_checker MODULE
     # List your source files here.
     msg_order_relax_checker.cpp
+    mpi_functions.h
+    mpi_functions.cpp
 )
 
 # Use C++11 to compile our pass (i.e., supply -std=c++11).

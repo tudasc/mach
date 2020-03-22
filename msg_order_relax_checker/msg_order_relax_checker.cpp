@@ -18,19 +18,32 @@
 //#include <mpi.h>
 #include <cstring>
 #include <utility>
+
+#include "mpi_functions.h"
+
 using namespace llvm;
+
+//declare dso_local i32 @MPI_Init(i32*, i8***) #1
+//declare dso_local i32 @MPI_Comm_rank(i32, i32*) #1
+//declare dso_local i32 @MPI_Recv(i8*, i32, i32, i32, i32, i32, %struct.MPI_Status*) #1
+//declare dso_local i32 @MPI_Send(i8*, i32, i32, i32, i32, i32) #1
+//declare dso_local i32 @MPI_Finalize() #1
+
 
 namespace 
 {
-    struct ExperimentPass : public ModulePass
+    struct MSGOrderRelaxCheckerPass : public ModulePass
     {
         static char ID;
-        ExperimentPass() : ModulePass(ID) {}
+        MSGOrderRelaxCheckerPass() : ModulePass(ID) {}
 
         //Pass starts here
         virtual bool runOnModule(Module &M) 
         {
-            M.dump();
+
+        	struct mpi_functions * mpi_functions = get_used_mpi_functions(M);
+
+            //M.dump();
             printf("Succesfully executed the example pass\n\n");
             return false;
         }
@@ -38,13 +51,13 @@ namespace
 }
 
 
-char ExperimentPass::ID = 0;
+char MSGOrderRelaxCheckerPass::ID = 42;
 
 // Automatically enable the pass.
 // http://adriansampson.net/blog/clangpass.html
 static void registerExperimentPass(const PassManagerBuilder &, legacy::PassManagerBase &PM) 
 {
-    PM.add(new ExperimentPass());
+    PM.add(new MSGOrderRelaxCheckerPass());
 }
 
 static RegisterStandardPasses
