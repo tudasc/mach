@@ -12,12 +12,14 @@
 #include "llvm/IR/Module.h"
 
 struct mpi_functions {
-	llvm::Function *mpi_init = nullptr;
-	llvm::Function *mpi_send = nullptr;
-	llvm::Function *mpi_recv = nullptr;
-	llvm::Function *mpi_finalize = nullptr;
+	llvm::Function *mpi_init;
+	llvm::Function *mpi_send;
+	llvm::Function *mpi_recv;
+	llvm::Function *mpi_finalize;
 };
 
-struct mpi_functions * get_used_mpi_functions(llvm::Module &M);
+struct mpi_functions* get_used_mpi_functions(llvm::Module &M);
+
+bool is_mpi_used(struct mpi_functions *mpi_func);
 
 #endif /* MSG_ORDER_RELAX_CHECKER_MPI_FUNCTIONS_H_ */

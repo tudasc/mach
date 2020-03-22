@@ -41,10 +41,15 @@ namespace
         virtual bool runOnModule(Module &M) 
         {
 
-        	struct mpi_functions * mpi_functions = get_used_mpi_functions(M);
-
+        	struct mpi_functions * mpi_func = get_used_mpi_functions(M);
+        	if (! is_mpi_used(mpi_func)){
+        		// nothing to do for non mpi applicatiopns
+        		free (mpi_func);
+        		return false;
+        	}
+        	errs() << "Successfully executed the example pass\n\n";
+        	free (mpi_func);
             //M.dump();
-            printf("Succesfully executed the example pass\n\n");
             return false;
         }
     };
