@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# checks wether the src files in the staging area are formated according to LLVM style
+# to install this hook: cp pre-commit.hook .git/hooks/pre-commit
+
+files=()
+for file in `git diff --cached --name-only --diff-filter=ACMRT | grep -E "\.(|c|h|cpp|hpp)$"`; do
+  if ! cmp -s <(git show :${file}) <(git show :${file}|clang-format --style=LLVM); then
+    files+=("${file}")
+  fi
+done
+
+if [ -n "${files}" ]; then
+echo Format error within the following files:
+printf "%s\n" "${files[@]}"
+exit 1
+fi
