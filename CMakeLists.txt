@@ -9,3 +9,4 @@ include_directories(${LLVM_INCLUDE_DIRS})
 link_directories(${LLVM_LIBRARY_DIRS})
 
 add_subdirectory(dump_ir_pass)
+add_subdirectory(msg_order_relax_checker)
