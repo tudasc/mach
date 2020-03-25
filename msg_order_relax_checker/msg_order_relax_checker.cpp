@@ -33,6 +33,14 @@ bool is_mpi_call(CallBase *call) {
   return call->getCalledFunction()->getName().contains("MPI");
 }
 
+bool are_calls_conflicting(CallBase *orig_call, CallBase *conflict_call) {
+
+  errs() << "conflict detected: ";
+  conflict_call->dump();
+  errs() << "\n";
+  return true;
+}
+
 bool check_call_for_conflict(CallBase *mpi_call) {
 
   std::set<BasicBlock *> to_check;
@@ -66,10 +74,11 @@ bool check_call_for_conflict(CallBase *mpi_call) {
         } else if (mpi_func->conflicting_functions.find(
                        call->getCalledFunction()) !=
                    mpi_func->conflicting_functions.end()) {
-          errs() << "conflict detected: ";
-          call->dump();
-          errs() << "\n";
-          return true;
+          bool conflict = are_calls_conflicting(mpi_call, call);
+          if (conflict) {
+            // found at least one conflict, currently we can stop then
+            return true;
+          }
         }
 
       } else {
