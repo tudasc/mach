@@ -3,6 +3,8 @@ add_library(msg_order_relax_checker MODULE
     msg_order_relax_checker.cpp
     mpi_functions.h
     mpi_functions.cpp
+    conflict_detection.h
+    conflict_detection.cpp
 )
 
 # Use C++11 to compile our pass (i.e., supply -std=c++11).

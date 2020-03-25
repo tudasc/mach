@@ -13,6 +13,11 @@
 
 #include <set>
 
+// global:
+// will be init and destroyed in the Passes runOnModule function (equivalent to
+// main)
+extern struct mpi_functions *mpi_func;
+
 struct mpi_functions {
   llvm::Function *mpi_init = nullptr;
   llvm::Function *mpi_finalize = nullptr;
