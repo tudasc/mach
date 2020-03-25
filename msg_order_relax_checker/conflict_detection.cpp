@@ -6,6 +6,7 @@
  */
 
 #include "conflict_detection.h"
+#include "implementation_specific.h"
 #include "mpi_functions.h"
 
 using namespace llvm;
@@ -45,10 +46,13 @@ bool are_calls_conflicting(CallBase *orig_call, CallBase *conflict_call) {
     if (auto *s2 = dyn_cast<Constant>(src2)) {
       if (s1 != s2) {
         // different sources
-        // TODO we need to exclude any MPI_ANY_SOURCE here
-        errs() << "If you use MPI_ANY_SOURCE in any MPI call, this analysis "
-                  "might be screwed, as this is currently not supported\n";
-        return false;
+        if (s1 != mpi_implementation_specific_constants->ANY_SOURCE &&
+            s2 != mpi_implementation_specific_constants->ANY_SOURCE) {
+          return false;
+        } else {
+          // debug:
+          errs() << "Detected any source\n";
+        }
       }
     }
   } // otherwise, we have not proven that the src might be different
@@ -60,10 +64,13 @@ bool are_calls_conflicting(CallBase *orig_call, CallBase *conflict_call) {
     if (auto *t2 = dyn_cast<Constant>(tag2)) {
       if (t1 != t2) {
         // different tags
-        // TODO we need to exclude any MPI_ANY_TAG here
-        errs() << "If you use MPI_ANY_TAG in any MPI call, this analysis might "
-                  "be screwed, as this is currently not supported\n";
-        return false;
+        if (t1 != mpi_implementation_specific_constants->ANY_TAG &&
+            t2 != mpi_implementation_specific_constants->ANY_TAG) {
+          return false;
+        } else {
+          // debug:
+          errs() << "Detected any tag\n";
+        }
       }
     }
   } // otherwise, we have not proven that the tag is be different

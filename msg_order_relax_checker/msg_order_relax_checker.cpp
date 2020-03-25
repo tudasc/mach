@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "conflict_detection.h"
+#include "implementation_specific.h"
 #include "mpi_functions.h"
 
 using namespace llvm;
@@ -152,6 +153,7 @@ bool check_mpi_recv_conflicts(Module &M) {
 }
 
 struct mpi_functions *mpi_func;
+struct implementation_specific_constants *mpi_implementation_specific_constants;
 
 namespace {
 struct MSGOrderRelaxCheckerPass : public ModulePass {
@@ -171,6 +173,8 @@ struct MSGOrderRelaxCheckerPass : public ModulePass {
       return false;
     }
 
+    mpi_implementation_specific_constants = get_implementation_specifics(M);
+
     bool conflicts = false;
     conflicts = conflicts || check_mpi_recv_conflicts(M);
 
@@ -182,6 +186,7 @@ struct MSGOrderRelaxCheckerPass : public ModulePass {
     }
     errs() << "Successfully executed the example pass\n\n";
     delete mpi_func;
+    delete mpi_implementation_specific_constants;
 
     return false;
   }
