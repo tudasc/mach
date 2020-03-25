@@ -11,12 +11,20 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Module.h"
 
+#include <set>
+
 struct mpi_functions {
-  llvm::Function *mpi_init;
-  llvm::Function *mpi_finalize;
-  llvm::Function *mpi_send;
-  llvm::Function *mpi_recv;
-  llvm::Function *mpi_barrier;
+  llvm::Function *mpi_init = nullptr;
+  llvm::Function *mpi_finalize = nullptr;
+  llvm::Function *mpi_send = nullptr;
+  llvm::Function *mpi_recv = nullptr;
+  llvm::Function *mpi_barrier = nullptr;
+  std::set<llvm::Function *>
+      conflicting_functions; // may result in a conflict for msg overtaking
+  std::set<llvm::Function *>
+      sync_functions; // will end the conflicting timeframe (like a barrier)
+  std::set<llvm::Function *>
+      unimportant_functions; // no implications for msg overtaking
 };
 
 struct mpi_functions *get_used_mpi_functions(llvm::Module &M);

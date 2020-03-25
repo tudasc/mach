@@ -133,7 +133,7 @@ struct MSGOrderRelaxCheckerPass : public ModulePass {
     mpi_func = get_used_mpi_functions(M);
     if (!is_mpi_used(mpi_func)) {
       // nothing to do for non mpi applicatiopns
-      free(mpi_func);
+      delete mpi_func;
       return false;
     }
 
@@ -147,7 +147,7 @@ struct MSGOrderRelaxCheckerPass : public ModulePass {
                 "for better performance\n";
     }
     errs() << "Successfully executed the example pass\n\n";
-    free(mpi_func);
+    delete mpi_func;
 
     return false;
   }
