@@ -26,12 +26,14 @@ struct mpi_functions *get_used_mpi_functions(llvm::Module &M) {
     errs() << f->getName() << "\n";
     if (f->getName().contains("MPI_Init")) {
       result->mpi_init = f;
+    } else if (f->getName().contains("MPI_Finalize")) {
+      result->mpi_finalize = f;
     } else if (f->getName().contains("MPI_Send")) {
       result->mpi_send = f;
     } else if (f->getName().contains("MPI_Recv")) {
       result->mpi_recv = f;
-    } else if (f->getName().contains("MPI_Finalize")) {
-      result->mpi_finalize = f;
+    } else if (f->getName().contains("MPI_Barrier")) {
+      result->mpi_barrier = f;
     }
   }
 

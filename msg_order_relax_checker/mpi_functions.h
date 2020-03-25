@@ -13,9 +13,10 @@
 
 struct mpi_functions {
   llvm::Function *mpi_init;
+  llvm::Function *mpi_finalize;
   llvm::Function *mpi_send;
   llvm::Function *mpi_recv;
-  llvm::Function *mpi_finalize;
+  llvm::Function *mpi_barrier;
 };
 
 struct mpi_functions *get_used_mpi_functions(llvm::Module &M);
