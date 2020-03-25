@@ -157,6 +157,9 @@ struct MSGOrderRelaxCheckerPass : public ModulePass {
   // Pass starts here
   virtual bool runOnModule(Module &M) {
 
+    // debug:
+    M.dump();
+
     mpi_func = get_used_mpi_functions(M);
     if (!is_mpi_used(mpi_func)) {
       // nothing to do for non mpi applicatiopns
@@ -190,8 +193,12 @@ static void registerExperimentPass(const PassManagerBuilder &,
   PM.add(new MSGOrderRelaxCheckerPass());
 }
 
+// static RegisterStandardPasses
+//    RegisterMyPass(PassManagerBuilder::EP_ModuleOptimizerEarly,
+//                   registerExperimentPass);
+
 static RegisterStandardPasses
-    RegisterMyPass(PassManagerBuilder::EP_ModuleOptimizerEarly,
+    RegisterMyPass(PassManagerBuilder::EP_OptimizerLast,
                    registerExperimentPass);
 
 static RegisterStandardPasses
