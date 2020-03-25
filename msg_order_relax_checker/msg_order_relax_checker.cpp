@@ -56,6 +56,21 @@ bool check_call_for_conflict(CallBase *mpi_call) {
         // is a sync point
         errs() << "need to check call to "
                << call->getCalledFunction()->getName() << "\n";
+        if (mpi_func->sync_functions.find(call->getCalledFunction()) !=
+            mpi_func->sync_functions.end()) {
+          // no need to analyze this path further, a sync point will stop msg
+          // overtaking anyway
+          current_inst = nullptr;
+          errs() << "call to " << call->getCalledFunction()->getName()
+                 << " is a sync point, no overtaking possible beyond it\n";
+        } else if (mpi_func->conflicting_functions.find(
+                       call->getCalledFunction()) !=
+                   mpi_func->conflicting_functions.end()) {
+          errs() << "conflict detected: ";
+          call->dump();
+          errs() << "\n";
+          return true;
+        }
 
       } else {
         errs() << "Call To " << call->getCalledFunction()->getName()
@@ -65,12 +80,14 @@ bool check_call_for_conflict(CallBase *mpi_call) {
       }
     }
 
+    // now fetch the next inst
+    next_inst = nullptr;
+
     if (current_inst !=
         nullptr) // if not discovered to stop analyzing this code path
     {
       if (current_inst->isTerminator()) {
         for (unsigned int i = 0; i < current_inst->getNumSuccessors(); ++i) {
-          errs() << i << "i\n";
           auto *next_block = current_inst->getSuccessor(i);
           if (already_checked.find(next_block) == already_checked.end()) {
             to_check.insert(next_block);
@@ -82,6 +99,7 @@ bool check_call_for_conflict(CallBase *mpi_call) {
     }
 
     if (next_inst == nullptr) {
+      // errs() << to_check.size();
       if (!to_check.empty()) {
         auto it_pos = to_check.begin();
 
