@@ -21,14 +21,14 @@ int main() {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   switch (rank) {
   case 0:
-    MPI_IBarrier(MPI_COMM_WORLD, &bar_req);
+    MPI_Ibarrier(MPI_COMM_WORLD, &bar_req);
     MPI_Recv(&a, 1, MPI_INT, 1, MSG_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     MPI_Wait(&bar_req, MPI_STATUS_IGNORE);
     MPI_Recv(&b, 1, MPI_INT, 1, MSG_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     break;
   case 1:
     MPI_Send(&a, 1, MPI_INT, 0, MSG_TAG, MPI_COMM_WORLD);
-    MPI_IBarrier(MPI_COMM_WORLD, &bar_req);
+    MPI_Ibarrier(MPI_COMM_WORLD, &bar_req);
     MPI_Wait(&bar_req, MPI_STATUS_IGNORE);
     MPI_Send(&b, 1, MPI_INT, 0, MSG_TAG, MPI_COMM_WORLD);
     break;
