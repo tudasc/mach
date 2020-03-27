@@ -58,7 +58,7 @@ done 6<$TEST_FILE
 
 echo succeded at $succesful of $num_tests tests
 
-if [[ $succesful < $num_tests ]]; then
+if [ $succesful  -lt $num_tests ]; then
 	echo -e "${Red}FAILED SOME TESTS${NC}"
 	exit 1
 else
