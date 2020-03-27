@@ -8,6 +8,10 @@ tests/two_messages/wrong_bar.c conflict
 tests/two_messages/wrong_bar_cocrrected.c conflict
 tests/two_messages/wrong_bar_cocrrected_2.c conflict
 tests/two_messages/red_seperated.c conflict
+tests/two_messages/bar_isend.c conflict
+tests/two_messages/bar_bsend.c conflict
+tests/two_messages/bar_isend_2.c no
+tests/two_messages/bar_bsend_2.c no
 tests/two_messages/Ibarrier.c no
 tests/two_messages/Ibarrier_2.c no
 tests/two_messages/Ibarrier_3.c conflict
