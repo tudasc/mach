@@ -1,0 +1,6 @@
+tests/one_message.c no
+tests/two_messages_any_conflict.c conflict
+tests/two_messages_bar_seperated.c no
+tests/two_messages_no_conflict.c no
+tests/two_messages_solvable_conflict.c conflict
+tests/two_messages_wrong_bar.c no
