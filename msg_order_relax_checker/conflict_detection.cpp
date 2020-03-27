@@ -17,7 +17,7 @@ bool is_mpi_call(CallBase *call) {
 
 bool check_call_for_conflict(CallBase *mpi_call) {
 
-  std::set<BasicBlock *> to_check;
+  std::set<std::pair<BasicBlock *, bool>> to_check;
   std::set<BasicBlock *>
       already_checked; // be aware, that revisiting the current block might be
                        // necessary if in a loop
@@ -28,6 +28,15 @@ bool check_call_for_conflict(CallBase *mpi_call) {
   Instruction *next_inst = current_inst->getNextNode();
 
   // mpi_call->dump();
+
+  // if this call is within the ibarrier, We suspect its past the barrier for
+  // our analysis, as it may conflict with past calls, preceding calls will
+  // detect the conflict with this call nonetheless Theoretically it is allowed
+  // to have multiple Ibarriers interleaved. (meaning calling Ibar, Ibar, Wait,
+  // Wait) but our analysis will not cover multiple ibarriers, we only care
+  // about the first encountered
+  bool in_Ibarrier = false;
+  Value *i_barrier_request = nullptr;
 
   while (next_inst != nullptr) {
     current_inst = next_inst;
@@ -41,11 +50,44 @@ bool check_call_for_conflict(CallBase *mpi_call) {
         //		<< call->getCalledFunction()->getName() << "\n";
         if (mpi_func->sync_functions.find(call->getCalledFunction()) !=
             mpi_func->sync_functions.end()) {
+
+          if (call->getCalledFunction() == mpi_func->mpi_Ibarrier) {
+            errs() << "TODO: Handle IBARR";
+            if (in_Ibarrier) {
+              errs() << "Why do you use multiple interleaved Ibarrier's? I "
+                        "don't see a usecase for it.\n";
+            } else {
+
+              assert(call->getNumArgOperands() == 2 &&
+                     "MPI_Ibarrier has 2 args");
+              if (get_communicator(mpi_call) == call->getArgOperand(0)) {
+                in_Ibarrier = true;
+                i_barrier_request = call->getArgOperand(2);
+                i_barrier_request->dump();
+              }
+              // else: could not prove same communicator: pretend barrier isnt
+              // there for our analysis
+            }
+          } else if (call->getCalledFunction() == mpi_func->mpi_barrier) {
+            assert(call->getNumArgOperands() == 1 && "MPI_Barrier has 1 args");
+            if (get_communicator(mpi_call) == call->getArgOperand(0)) {
+              current_inst = nullptr;
+              errs() << "call to " << call->getCalledFunction()->getName()
+                     << " is a sync point, no overtaking possible beyond it\n";
+            }
+            // else: could not prove that barrier is in the same communicator:
+            // continue analysis
+
+          } else if (call->getCalledFunction() == mpi_func->mpi_finalize) {
+            // no mpi beyond this
+            current_inst = nullptr;
+            errs() << "call to " << call->getCalledFunction()->getName()
+                   << " is a sync point, no overtaking possible beyond it\n";
+          }
+
           // no need to analyze this path further, a sync point will stop msg
           // overtaking anyway
-          current_inst = nullptr;
-          errs() << "call to " << call->getCalledFunction()->getName()
-                 << " is a sync point, no overtaking possible beyond it\n";
+
         } else if (mpi_func->conflicting_functions.find(
                        call->getCalledFunction()) !=
                    mpi_func->conflicting_functions.end()) {
@@ -53,8 +95,9 @@ bool check_call_for_conflict(CallBase *mpi_call) {
         } else if (mpi_func->unimportant_functions.find(
                        call->getCalledFunction()) !=
                    mpi_func->unimportant_functions.end()) {
-          errs() << "call to " << call->getCalledFunction()->getName()
-                 << " is currently not supported in this analysis\n";
+
+          // errs() << "call to " << call->getCalledFunction()->getName()
+          //       << " is currently not supported in this analysis\n";
         }
 
       } else {
@@ -75,7 +118,7 @@ bool check_call_for_conflict(CallBase *mpi_call) {
         for (unsigned int i = 0; i < current_inst->getNumSuccessors(); ++i) {
           auto *next_block = current_inst->getSuccessor(i);
           if (already_checked.find(next_block) == already_checked.end()) {
-            to_check.insert(next_block);
+            to_check.insert(std::make_pair(next_block, in_Ibarrier));
           }
         }
       }
@@ -88,7 +131,9 @@ bool check_call_for_conflict(CallBase *mpi_call) {
       if (!to_check.empty()) {
         auto it_pos = to_check.begin();
 
-        BasicBlock *bb = *it_pos;
+        std::pair<BasicBlock *, bool> pair = *it_pos;
+        BasicBlock *bb = pair.first;
+        in_Ibarrier = pair.second;
         to_check.erase(it_pos);
         already_checked.insert(
             bb); // will be checked now, so no revisiting necessary

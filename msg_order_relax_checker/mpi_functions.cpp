@@ -31,6 +31,9 @@ struct mpi_functions *get_used_mpi_functions(llvm::Module &M) {
     } else if (f->getName().contains("MPI_Barrier")) {
       result->mpi_barrier = f;
       result->sync_functions.insert(f);
+    } else if (f->getName().contains("MPI_Ibarrier")) {
+      result->mpi_Ibarrier = f;
+      result->sync_functions.insert(f);
     }
 
     // different sending modes:
