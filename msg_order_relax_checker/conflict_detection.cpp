@@ -19,8 +19,8 @@ bool are_calls_conflicting(CallBase *orig_call, CallBase *conflict_call) {
   conflict_call->dump();
   errs() << "\n";
   if (orig_call == conflict_call) {
-    errs() << "Recv is conflicting with itself, probably in a loop, if using "
-              "different msg tags on each iteration this is safe nontheless\n";
+    errs() << "Send is conflicting with itself, probably in a loop, if using "
+              "different msg tags on each iteration this is safe nonetheless\n";
     return true;
   }
 
@@ -46,13 +46,7 @@ bool are_calls_conflicting(CallBase *orig_call, CallBase *conflict_call) {
     if (auto *s2 = dyn_cast<Constant>(src2)) {
       if (s1 != s2) {
         // different sources
-        if (s1 != mpi_implementation_specific_constants->ANY_SOURCE &&
-            s2 != mpi_implementation_specific_constants->ANY_SOURCE) {
-          return false;
-        } else {
-          // debug:
-          errs() << "Detected any source\n";
-        }
+        return false;
       }
     }
   } // otherwise, we have not proven that the src might be different
@@ -64,13 +58,7 @@ bool are_calls_conflicting(CallBase *orig_call, CallBase *conflict_call) {
     if (auto *t2 = dyn_cast<Constant>(tag2)) {
       if (t1 != t2) {
         // different tags
-        if (t1 != mpi_implementation_specific_constants->ANY_TAG &&
-            t2 != mpi_implementation_specific_constants->ANY_TAG) {
-          return false;
-        } else {
-          // debug:
-          errs() << "Detected any tag\n";
-        }
+        return false;
       }
     }
   } // otherwise, we have not proven that the tag is be different
@@ -84,8 +72,8 @@ Value *get_communicator(CallBase *mpi_call) {
   unsigned int total_num_args = 0;
   unsigned int communicator_arg_pos = 0;
 
-  if (mpi_call->getCalledFunction() == mpi_func->mpi_recv) {
-    total_num_args = 7;
+  if (mpi_call->getCalledFunction() == mpi_func->mpi_send) {
+    total_num_args = 6;
     communicator_arg_pos = 5;
   } else {
     errs() << mpi_call->getCalledFunction()->getName()
@@ -103,8 +91,8 @@ Value *get_src(CallBase *mpi_call) {
   unsigned int total_num_args = 0;
   unsigned int src_arg_pos = 0;
 
-  if (mpi_call->getCalledFunction() == mpi_func->mpi_recv) {
-    total_num_args = 7;
+  if (mpi_call->getCalledFunction() == mpi_func->mpi_send) {
+    total_num_args = 6;
     src_arg_pos = 3;
   } else {
     errs() << mpi_call->getCalledFunction()->getName()
@@ -122,8 +110,8 @@ Value *get_tag(CallBase *mpi_call) {
   unsigned int total_num_args = 0;
   unsigned int tag_arg_pos = 0;
 
-  if (mpi_call->getCalledFunction() == mpi_func->mpi_recv) {
-    total_num_args = 7;
+  if (mpi_call->getCalledFunction() == mpi_func->mpi_send) {
+    total_num_args = 6;
     tag_arg_pos = 4;
   } else {
     errs() << mpi_call->getCalledFunction()->getName()

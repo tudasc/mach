@@ -21,18 +21,19 @@ struct mpi_functions *get_used_mpi_functions(llvm::Module &M) {
     errs() << f->getName() << "\n";
     if (f->getName().contains("MPI_Init")) {
       result->mpi_init = f;
-      // should not be called twice anyway
+      // should not be called twice anyway, so no need to handle it
       // result->conflicting_functions.insert(f);
     } else if (f->getName().contains("MPI_Finalize")) {
       result->mpi_finalize = f;
       result->sync_functions.insert(f);
     } else if (f->getName().contains("MPI_Send")) {
       result->mpi_send = f;
-      // no conflict with receiving msg that may overtake each other
-      result->unimportant_functions.insert(f);
+      result->conflicting_functions.insert(f);
     } else if (f->getName().contains("MPI_Recv")) {
       result->mpi_recv = f;
-      result->conflicting_functions.insert(f);
+      // no conflict with sending out msg that may overtake each other
+      // maybe this blocking recv may even prevent a conflict
+      result->unimportant_functions.insert(f);
     } else if (f->getName().contains("MPI_Barrier")) {
       result->mpi_barrier = f;
       result->sync_functions.insert(f);

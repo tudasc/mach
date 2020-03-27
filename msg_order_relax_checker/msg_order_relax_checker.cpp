@@ -37,7 +37,7 @@ bool check_call_for_conflict(CallBase *mpi_call) {
 
   std::set<BasicBlock *> to_check;
   std::set<BasicBlock *>
-      already_checked; // be aware, that revisiting the current block micht be
+      already_checked; // be aware, that revisiting the current block might be
                        // necessary if in a loop
   std::set<CallBase *> potential_conflicts;
 
@@ -128,15 +128,15 @@ bool check_call_for_conflict(CallBase *mpi_call) {
   return false;
 }
 
-bool check_mpi_recv_conflicts(Module &M) {
-  if (mpi_func->mpi_recv == nullptr) {
+bool check_mpi_send_conflicts(Module &M) {
+  if (mpi_func->mpi_send == nullptr) {
     // no msg: no conflict
     return false;
   }
 
-  for (auto user : mpi_func->mpi_recv->users()) {
+  for (auto user : mpi_func->mpi_send->users()) {
     if (CallBase *call = dyn_cast<CallBase>(user)) {
-      if (call->getCalledFunction() == mpi_func->mpi_recv) {
+      if (call->getCalledFunction() == mpi_func->mpi_send) {
         if (check_call_for_conflict(call)) {
           // found conflict
           return true;
@@ -176,7 +176,7 @@ struct MSGOrderRelaxCheckerPass : public ModulePass {
     mpi_implementation_specific_constants = get_implementation_specifics(M);
 
     bool conflicts = false;
-    conflicts = conflicts || check_mpi_recv_conflicts(M);
+    conflicts = conflicts || check_mpi_send_conflicts(M);
 
     if (conflicts)
       errs() << "Message race conflicts detected\n";
