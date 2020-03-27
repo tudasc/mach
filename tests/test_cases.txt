@@ -5,8 +5,8 @@ tests/two_messages/bar_seperated.c no
 tests/two_messages/no_conflict.c no
 tests/two_messages/solvable_conflict.c conflict
 tests/two_messages/wrong_bar.c conflict
-tests/two_messages/wrong_bar_corrected.c conflict
-tests/two_messages/wrong_bar_corrected_2.c conflict
+tests/two_messages/wrong_bar_cocrrected.c conflict
+tests/two_messages/wrong_bar_cocrrected_2.c conflict
 tests/two_messages/red_seperated.c conflict
 tests/two_messages/Ibarrier.c no
 tests/two_messages/Ibarrier_2.c no
