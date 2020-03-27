@@ -17,7 +17,7 @@ test_name=$1
 expected_result=$2
 
 # 0 means test failed!
-# 1 menas one test succeded!
+# 1 means one test succeded!
 exitcode=0
 
 if [ "$expected_result" == "no" ]; then
@@ -50,11 +50,11 @@ elif [ "$VERBOSE" == true ]; then
 	echo -e "${Green}SUCCES${NC}" $line
 fi
 
-num_tests=$(( num_tests + 1))
-succesful=$(( succesful + status))
+num_tests=$(( num_tests + 1 ))
+succesful=$(( succesful + status ))
 
 done 6<$TEST_FILE
-# not use stdin rather input channel 6
+# not use stdin rather use input channel 6
 
 echo succeded at $succesful of $num_tests tests
 

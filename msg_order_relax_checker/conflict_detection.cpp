@@ -143,8 +143,8 @@ bool check_mpi_Isend_conflicts(Module &M) {
 
   if (mpi_func->mpi_Ibsend != nullptr || mpi_func->mpi_Issend != nullptr ||
       mpi_func->mpi_Irsend != nullptr) {
-    errs() << "This analysis does not cover the Usage of any of Ib Ir or "
-              "Issend operations, Replace them with another send mode like "
+    errs() << "This analysis does not cover the usage of any of Ib Ir or "
+              "Issend operations. Replace them with another send mode like "
               "Isend instead\n";
     return false;
   }
