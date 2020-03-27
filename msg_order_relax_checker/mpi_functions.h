@@ -21,9 +21,23 @@ extern struct mpi_functions *mpi_func;
 struct mpi_functions {
   llvm::Function *mpi_init = nullptr;
   llvm::Function *mpi_finalize = nullptr;
+
   llvm::Function *mpi_send = nullptr;
+  llvm::Function *mpi_Bsend = nullptr;
+  llvm::Function *mpi_Isend = nullptr;
+  llvm::Function *mpi_Ssend = nullptr;
+  llvm::Function *mpi_Rsend = nullptr;
+
   llvm::Function *mpi_recv = nullptr;
+
+  llvm::Function *mpi_test = nullptr;
+  llvm::Function *mpi_wait = nullptr;
+  llvm::Function *mpi_waitall = nullptr;
+  llvm::Function *mpi_buffer_detach = nullptr;
+
   llvm::Function *mpi_barrier = nullptr;
+  llvm::Function *mpi_Ibarrier = nullptr;
+
   std::set<llvm::Function *>
       conflicting_functions; // may result in a conflict for msg overtaking
   std::set<llvm::Function *>
