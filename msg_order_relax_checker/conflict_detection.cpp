@@ -52,7 +52,6 @@ bool check_call_for_conflict(CallBase *mpi_call) {
             mpi_func->sync_functions.end()) {
 
           if (call->getCalledFunction() == mpi_func->mpi_Ibarrier) {
-            errs() << "TODO: Handle IBARR";
             if (in_Ibarrier) {
               errs() << "Why do you use multiple interleaved Ibarrier's? I "
                         "don't see a usecase for it.\n";
@@ -62,7 +61,7 @@ bool check_call_for_conflict(CallBase *mpi_call) {
                      "MPI_Ibarrier has 2 args");
               if (get_communicator(mpi_call) == call->getArgOperand(0)) {
                 in_Ibarrier = true;
-                i_barrier_request = call->getArgOperand(2);
+                i_barrier_request = call->getArgOperand(1);
                 i_barrier_request->dump();
               }
               // else: could not prove same communicator: pretend barrier isnt
@@ -95,6 +94,16 @@ bool check_call_for_conflict(CallBase *mpi_call) {
         } else if (mpi_func->unimportant_functions.find(
                        call->getCalledFunction()) !=
                    mpi_func->unimportant_functions.end()) {
+
+          if (in_Ibarrier && call->getCalledFunction() == mpi_func->mpi_wait) {
+            assert(call->getNumArgOperands() == 2 && "MPI_Wait has 2 args");
+            if (call->getArgOperand(0) == i_barrier_request) {
+              // no mpi beyond this
+              current_inst = nullptr;
+              errs()
+                  << "Completed Ibarrier, no overtaking possible beyond it\n";
+            }
+          } // if request does not mach: no implications fo our analysis
 
           // errs() << "call to " << call->getCalledFunction()->getName()
           //       << " is currently not supported in this analysis\n";
