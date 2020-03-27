@@ -10,6 +10,7 @@ TEST_FILE=tests/test_cases.txt
 # colorize
 Red='\033[0;31m'
 Green='\033[0;32m'
+Yellow='\033[0;33m' 
 NC='\033[0m'
 
 run_test () {
@@ -27,8 +28,7 @@ if [ "$expected_result" == "no" ]; then
 		exitcode=1
 	fi
 elif [ "$expected_result" == "conflict" ]; then
-
-if [ "$(./run.sh $test_name  2> >(grep "Message race conflicts detected"))" == "" ]; then
+	if [ "$(./run.sh $test_name  2> >(grep "Message race conflicts detected"))" == "" ]; then
 		exitcode=0
 	else
 		exitcode=1
@@ -44,8 +44,11 @@ while read -u 6 line; do
 
 run_test $line
 status=$?
-if [ "$status" == 0 ]; then
+
+if [ "$status" == 0 ] && [ "$expected_result" == "conflict" ]; then
 	echo -e "${Red}FAILED${NC}" $line
+elif [ "$status" == 0 ] && [ "$expected_result" == "no" ]; then
+	echo -e "${Yellow}FALSE POSITIVE${NC}" $line
 elif [ "$VERBOSE" == true ]; then
 	echo -e "${Green}SUCCES${NC}" $line
 fi
