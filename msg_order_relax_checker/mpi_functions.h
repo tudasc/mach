@@ -24,9 +24,12 @@ struct mpi_functions {
 
   llvm::Function *mpi_send = nullptr;
   llvm::Function *mpi_Bsend = nullptr;
-  llvm::Function *mpi_Isend = nullptr;
   llvm::Function *mpi_Ssend = nullptr;
   llvm::Function *mpi_Rsend = nullptr;
+  llvm::Function *mpi_Isend = nullptr;
+  llvm::Function *mpi_Ibsend = nullptr;
+  llvm::Function *mpi_Issend = nullptr;
+  llvm::Function *mpi_Irsend = nullptr;
 
   llvm::Function *mpi_recv = nullptr;
 

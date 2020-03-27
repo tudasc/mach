@@ -40,14 +40,23 @@ struct mpi_functions *get_used_mpi_functions(llvm::Module &M) {
     } else if (f->getName().contains("MPI_Bsend")) {
       result->mpi_Bsend = f;
       result->conflicting_functions.insert(f);
-    } else if (f->getName().contains("MPI_Isend")) {
-      result->mpi_Isend = f;
-      result->conflicting_functions.insert(f);
     } else if (f->getName().contains("MPI_Ssend")) {
       result->mpi_Ssend = f;
       result->conflicting_functions.insert(f);
     } else if (f->getName().contains("MPI_Rsend")) {
       result->mpi_Rsend = f;
+      result->conflicting_functions.insert(f);
+    } else if (f->getName().contains("MPI_Isend")) {
+      result->mpi_Isend = f;
+      result->conflicting_functions.insert(f);
+    } else if (f->getName().contains("MPI_Ibsend")) {
+      result->mpi_Ibsend = f;
+      result->conflicting_functions.insert(f);
+    } else if (f->getName().contains("MPI_Issend")) {
+      result->mpi_Issend = f;
+      result->conflicting_functions.insert(f);
+    } else if (f->getName().contains("MPI_Irsend")) {
+      result->mpi_Irsend = f;
       result->conflicting_functions.insert(f);
 
       // Other MPI functions, that themselves may not yield another conflict
