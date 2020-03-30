@@ -328,8 +328,39 @@ bool check_mpi_Isend_conflicts(Module &M) {
 }
 
 bool check_mpi_Bsend_conflicts(Module &M) {
-  // TODO give buffer detach into scope ending vector
-  return check_conflicts(M, mpi_func->mpi_Bsend);
+
+  Function *f = mpi_func->mpi_Bsend;
+  if (f == nullptr) {
+    // no messages: no conflict
+    return false;
+  }
+
+  std::vector<CallBase *> scope_endings;
+  for (auto *user : mpi_func->mpi_buffer_detach->users()) {
+    if (auto *buffer_detach_call = dyn_cast<CallBase>(user)) {
+      assert(buffer_detach_call->getCalledFunction() ==
+             mpi_func->mpi_buffer_detach);
+      scope_endings.push_back(buffer_detach_call);
+    }
+  }
+
+  for (auto user : f->users()) {
+    if (CallBase *call = dyn_cast<CallBase>(user)) {
+      if (call->getCalledFunction() == f) {
+        if (check_call_for_conflict(call, scope_endings)) {
+          // found conflict
+          return true;
+        }
+
+      } else {
+        call->dump();
+        errs() << "\nWhy do you do that?\n";
+      }
+    }
+  }
+
+  // no conflicts found
+  return false;
 }
 
 bool check_mpi_Ssend_conflicts(Module &M) {
