@@ -55,5 +55,6 @@ struct mpi_functions *get_used_mpi_functions(llvm::Module &M);
 bool is_mpi_used(struct mpi_functions *mpi_func);
 
 bool is_mpi_call(llvm::CallBase *call);
+bool is_mpi_function(llvm::Function *f);
 
 #endif /* MSG_ORDER_RELAX_CHECKER_MPI_FUNCTIONS_H_ */

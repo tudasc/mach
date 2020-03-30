@@ -13,7 +13,12 @@
 using namespace llvm;
 
 bool is_mpi_call(CallBase *call) {
-  return call->getCalledFunction()->getName().contains("MPI");
+  return is_mpi_function(call->getCalledFunction());
+}
+
+bool is_mpi_function(llvm::Function *f) {
+  return f->getName().contains("MPI");
+  ;
 }
 
 struct mpi_functions *get_used_mpi_functions(llvm::Module &M) {
