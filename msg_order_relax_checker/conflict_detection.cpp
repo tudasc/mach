@@ -19,8 +19,8 @@ std::vector<CallBase *> get_corresponding_wait(CallBase *call);
 bool check_call_for_conflict(CallBase *mpi_call,
                              std::vector<CallBase *> scope_endings) {
 
-  // tuple Block, scope_ended,in_Ibarrier
-  std::set<std::tuple<BasicBlock *, bool, bool>> to_check;
+  // tuple Instr, scope_ended,in_Ibarrier
+  std::set<std::tuple<Instruction *, bool, bool>> to_check;
   std::set<BasicBlock *>
       already_checked; // be aware, that revisiting the current block might be
                        // necessary if in a loop
@@ -34,7 +34,7 @@ bool check_call_for_conflict(CallBase *mpi_call,
   // follow all possible code paths until
   // A a synchronization occurs
   // B a conflicting call is detected
-  // C end of function
+  // C end of program (mpi finalize)
   // for A the analysis will only stop if the scope of an I... call has already
   // ended
 
@@ -174,9 +174,24 @@ bool check_call_for_conflict(CallBase *mpi_call,
       if (current_inst->isTerminator()) {
         for (unsigned int i = 0; i < current_inst->getNumSuccessors(); ++i) {
           auto *next_block = current_inst->getSuccessor(i);
+
           if (already_checked.find(next_block) == already_checked.end()) {
-            to_check.insert(
-                std::make_tuple(next_block, scope_ended, in_Ibarrier));
+            to_check.insert(std::make_tuple(next_block->getFirstNonPHI(),
+                                            scope_ended, in_Ibarrier));
+          }
+        }
+        if (isa<ReturnInst>(current_inst)) {
+          // we have to check all exit points of this function for conflicts as
+          // well...
+          Function *f = current_inst->getFunction();
+          for (auto *user : f->users()) {
+            if (auto *where_returns = dyn_cast<CallBase>(user)) {
+              if (where_returns->getCalledFunction() == f) {
+                assert(where_returns->getNextNode() != nullptr);
+                to_check.insert(std::make_tuple(where_returns->getNextNode(),
+                                                scope_ended, in_Ibarrier));
+              }
+            }
           }
         }
       }
@@ -189,14 +204,14 @@ bool check_call_for_conflict(CallBase *mpi_call,
       if (!to_check.empty()) {
         auto it_pos = to_check.begin();
 
-        std::tuple<BasicBlock *, bool, bool> tup = *it_pos;
-        BasicBlock *bb = std::get<0>(tup);
+        std::tuple<Instruction *, bool, bool> tup = *it_pos;
+        next_inst = std::get<0>(tup);
         scope_ended = std::get<1>(tup);
         in_Ibarrier = std::get<2>(tup);
         to_check.erase(it_pos);
         already_checked.insert(
-            bb); // will be checked now, so no revisiting necessary
-        next_inst = bb->getFirstNonPHI();
+            next_inst->getParent()); // will be checked now, so no revisiting
+                                     // necessary
       }
     }
   } // end while
