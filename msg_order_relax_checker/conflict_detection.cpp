@@ -12,7 +12,12 @@
 
 using namespace llvm;
 
-bool check_call_for_conflict(CallBase *mpi_call) {
+// do i need to export it into header?
+std::vector<CallBase *> get_corresponding_wait(CallBase *call);
+
+// if scope ending.empty: normal send without a scope
+bool check_call_for_conflict(CallBase *mpi_call,
+                             std::vector<CallBase *> scope_endings) {
 
   std::set<std::pair<BasicBlock *, bool>> to_check;
   std::set<BasicBlock *>
@@ -189,7 +194,7 @@ bool check_conflicts(llvm::Module &M, llvm::Function *f) {
   for (auto user : f->users()) {
     if (CallBase *call = dyn_cast<CallBase>(user)) {
       if (call->getCalledFunction() == f) {
-        if (check_call_for_conflict(call)) {
+        if (check_call_for_conflict(call, std::vector<CallBase *>())) {
           // found conflict
           return true;
         }
@@ -219,10 +224,34 @@ bool check_mpi_Isend_conflicts(Module &M) {
     return false;
   }
 
-  return check_conflicts(M, mpi_func->mpi_Isend);
+  Function *f = mpi_func->mpi_Isend;
+  if (f == nullptr) {
+    // no messages: no conflict
+    return false;
+  }
+
+  for (auto user : f->users()) {
+    if (CallBase *call = dyn_cast<CallBase>(user)) {
+      if (call->getCalledFunction() == f) {
+        auto scope_endings = get_corresponding_wait(call);
+        if (check_call_for_conflict(call, scope_endings)) {
+          // found conflict
+          return true;
+        }
+
+      } else {
+        call->dump();
+        errs() << "\nWhy do you do that?\n";
+      }
+    }
+  }
+
+  // no conflicts found
+  return false;
 }
 
 bool check_mpi_Bsend_conflicts(Module &M) {
+  // TODO give buffer detach into scope ending vector
   return check_conflicts(M, mpi_func->mpi_Bsend);
 }
 
@@ -279,8 +308,8 @@ bool are_calls_conflicting(CallBase *orig_call, CallBase *conflict_call) {
       }
     }
   } // otherwise, we have not proven that the communicator is be different
-  // TODO: (very advanced) if e.g. mpi comm split is used, we might be able to
-  // statically prove different communicators
+    // TODO: (very advanced) if e.g. mpi comm split is used, we might be able to
+    // statically prove different communicators
 
   // check src
   auto *src1 = get_src(orig_call);
@@ -308,6 +337,55 @@ bool are_calls_conflicting(CallBase *orig_call, CallBase *conflict_call) {
 
   // cannot disprove conflict, have to assume it indeed relays on msg ordering
   return true;
+}
+
+std::vector<CallBase *> get_corresponding_wait(CallBase *call) {
+
+  errs() << "Analyzing scope of \n";
+  call->dump();
+  std::vector<CallBase *> result;
+  unsigned int req_arg_pos = 6;
+  if (call->getCalledFunction() == mpi_func->mpi_Ibarrier) {
+    assert(call->getNumArgOperands() == 2);
+    req_arg_pos = 1;
+  } else {
+    assert(call->getNumArgOperands() == 7);
+    assert(call->getCalledFunction() == mpi_func->mpi_Isend ||
+           call->getCalledFunction() == mpi_func->mpi_Ibsend ||
+           call->getCalledFunction() == mpi_func->mpi_Issend ||
+           call->getCalledFunction() == mpi_func->mpi_Irsend ||
+           call->getCalledFunction() == mpi_func->mpi_Irecv);
+  }
+
+  Value *req = call->getArgOperand(req_arg_pos);
+
+  req->dump();
+  if (auto *alloc = dyn_cast<AllocaInst>(req)) {
+    for (auto *user : alloc->users()) {
+      if (auto *other_call = dyn_cast<CallBase>(user)) {
+        if (other_call->getCalledFunction() == mpi_func->mpi_wait) {
+          assert(other_call->getNumArgOperands() == 2);
+          assert(other_call->getArgOperand(0) == req &&
+                 "First arg of MPi wait is MPI_Request");
+          // found end of scope
+          errs() << "possible ending of scope here \n";
+          other_call->dump();
+          result.push_back(other_call);
+        }
+      }
+    }
+    // TODO scope detection in basic waitall
+    // ofc at some point of pointer arithmetic, we cannot follow it
+
+  } else {
+    errs() << "could not determine scope of \n";
+    call->dump();
+    errs() << "Assuming it will finish at mpi_finalize.\n"
+           << "The Analysis result is still valid, although the chance of "
+              "false positives is higher\n";
+  }
+
+  return result;
 }
 
 Value *get_communicator(CallBase *mpi_call) {
