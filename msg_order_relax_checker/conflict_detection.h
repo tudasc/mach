@@ -10,6 +10,9 @@
 
 #include "llvm/IR/InstrTypes.h"
 
+bool check_mpi_recv_conflicts(llvm::Module &M);
+bool check_mpi_Irecv_conflicts(llvm::Module &M);
+
 bool check_mpi_send_conflicts(llvm::Module &M);
 bool check_mpi_Isend_conflicts(llvm::Module &M);
 bool check_mpi_Bsend_conflicts(llvm::Module &M);

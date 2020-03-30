@@ -72,17 +72,14 @@ struct mpi_functions *get_used_mpi_functions(llvm::Module &M) {
       result->mpi_Irsend = f;
       result->conflicting_functions.insert(f);
 
-      // Other MPI functions, that themselves may not yield another conflict
     } else if (f->getName().contains("MPI_Recv")) {
       result->mpi_recv = f;
-      // no conflict with sending out msg that may overtake each other
-      // maybe this blocking recv may even prevent a conflict
-      result->unimportant_functions.insert(f);
+      result->conflicting_functions.insert(f);
     } else if (f->getName().contains("MPI_Irecv")) {
       result->mpi_Irecv = f;
-      // no conflict with sending out msg that may overtake each other
-      // maybe this blocking recv may even prevent a conflict
-      result->unimportant_functions.insert(f);
+      result->conflicting_functions.insert(f);
+
+      // Other MPI functions, that themselves may not yield another conflict
     } else if (f->getName().contains("MPI_Buffer_detach")) {
       result->mpi_buffer_detach = f;
       result->unimportant_functions.insert(f);
@@ -108,4 +105,17 @@ bool is_mpi_used(struct mpi_functions *mpi_func) {
   } else {
     return false;
   }
+}
+
+bool is_send_function(llvm::Function *f) {
+  assert(f != nullptr);
+  return f == mpi_func->mpi_send || f == mpi_func->mpi_Bsend ||
+         f == mpi_func->mpi_Ssend || f == mpi_func->mpi_Rsend ||
+         f == mpi_func->mpi_Isend || f == mpi_func->mpi_Ibsend ||
+         f == mpi_func->mpi_Irsend || f == mpi_func->mpi_Issend;
+}
+
+bool is_recv_function(llvm::Function *f) {
+  assert(f != nullptr);
+  return f == mpi_func->mpi_recv || f == mpi_func->mpi_Irecv;
 }
