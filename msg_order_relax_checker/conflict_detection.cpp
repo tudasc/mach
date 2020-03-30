@@ -6,6 +6,7 @@
  */
 
 #include "conflict_detection.h"
+#include "function_coverage.h"
 #include "implementation_specific.h"
 #include "mpi_functions.h"
 
@@ -105,13 +106,32 @@ bool check_call_for_conflict(CallBase *mpi_call) {
           //       << " is currently not supported in this analysis\n";
         }
 
-      } else {
-        errs() << "Call To " << call->getCalledFunction()->getName()
-               << "Currently no checking whether there is MPI there!\n"
-               << "ASSUMING NO MPI IN " << call->getCalledFunction()->getName()
-               << "\n";
+      } else { // no mpi function
+
+        if (function_metadata->may_conflict(call->getCalledFunction())) {
+          errs() << "Call To " << call->getCalledFunction()->getName()
+                 << "May conflict\n";
+          // conflict found
+          return true;
+        } else if (function_metadata->will_sync(call->getCalledFunction())) {
+          // sync point detected
+          current_inst = nullptr;
+          errs() << "call to " << call->getCalledFunction()->getName()
+                 << " will sync, no overtaking possible beyond it\n";
+        } else {
+          errs() << "Could not determine if call to "
+                 << call->getCalledFunction()->getName()
+                 << "will result in a conflict, for safety we will assume it "
+                    "does \n";
+          // assume conflict
+          return true;
+        }
+
+        // for sanity:
+        assert(function_metadata->is_unknown(call->getCalledFunction()) ==
+               false);
       }
-    }
+    } // end if CallBase
 
     // now fetch the next inst
     next_inst = nullptr;
@@ -145,7 +165,7 @@ bool check_call_for_conflict(CallBase *mpi_call) {
         next_inst = bb->getFirstNonPHI();
       }
     }
-  }
+  } // end while
 
   // check for conflicts:
   for (auto *call : potential_conflicts) {
@@ -259,8 +279,8 @@ bool are_calls_conflicting(CallBase *orig_call, CallBase *conflict_call) {
       }
     }
   } // otherwise, we have not proven that the communicator is be different
-    // TODO: (very advanced) if e.g. mpi comm split is used, we might be able to
-    // statically prove different communicators
+  // TODO: (very advanced) if e.g. mpi comm split is used, we might be able to
+  // statically prove different communicators
 
   // check src
   auto *src1 = get_src(orig_call);
