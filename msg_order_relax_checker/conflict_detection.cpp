@@ -200,6 +200,10 @@ bool check_call_for_conflict(CallBase *mpi_call,
       next_inst = current_inst->getNextNode();
     }
 
+    if (dyn_cast_or_null<UnreachableInst>(next_inst)) { // stop at unreachable
+      next_inst = nullptr;
+    }
+
     if (next_inst == nullptr) {
       // errs() << to_check.size();
       if (!to_check.empty()) {

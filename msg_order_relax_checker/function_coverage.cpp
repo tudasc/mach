@@ -20,7 +20,11 @@ FunctionMetadata::FunctionMetadata(const llvm::TargetLibraryInfo *TLI,
   LibFunc libF;
   for (auto &F : M) {
 
-    if (F.isIntrinsic() || TLI->getLibFunc(F, libF) || is_mpi_function(&F)) {
+    // if one of this attr: no conflict possible
+    bool has_certain_attr = F.hasFnAttribute(Attribute::NoReturn);
+
+    if (has_certain_attr || F.isIntrinsic() || TLI->getLibFunc(F, libF) ||
+        is_mpi_function(&F)) {
       // errs() << F.getName() << " is part of stdlibs or an MPI call\n";
       // we consider MPi calls themselves to not include any forther mpi
       // commands, as they will be handeled differently form other function
