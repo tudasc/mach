@@ -6,7 +6,7 @@
 #define MSG_TAG 123
 #define N 1000
 
-// this is standard conform with no deadlock, and the isend msgs may overtake
+// this may result in conflict, as msg might be sended at waitall
 int main() {
   int a = 1;
   int b = 2;
