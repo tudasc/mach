@@ -132,7 +132,7 @@ bool check_call_for_conflict(CallBase *mpi_call,
               std::find(scope_endings.begin(), scope_endings.end(), call) !=
                   scope_endings.end()) {
             // found end of scope
-            scope_ended = false;
+            scope_ended = true;
           }
 
           // errs() << "call to " << call->getCalledFunction()->getName()
