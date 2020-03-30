@@ -151,7 +151,7 @@ bool check_call_for_conflict(CallBase *mpi_call,
           current_inst = nullptr;
           errs() << "call to " << call->getCalledFunction()->getName()
                  << " will sync, no overtaking possible beyond it\n";
-        } else {
+        } else if (function_metadata->is_unknown(call->getCalledFunction())) {
           errs() << "Could not determine if call to "
                  << call->getCalledFunction()->getName()
                  << "will result in a conflict, for safety we will assume it "

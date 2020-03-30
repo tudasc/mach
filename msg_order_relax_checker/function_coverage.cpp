@@ -100,8 +100,8 @@ bool FunctionMetadata::will_sync(llvm::Function *F) {
   auto search = this->function_metadata.find(F);
   if (search != function_metadata.end()) {
     auto info = search->second;
-    // ! unknown || will_sync
-    return !std::get<0>(info) || std::get<2>(info);
+    // ! unknown && will_sync
+    return !std::get<0>(info) && std::get<2>(info);
   } else {
     // no analysis for this function present: assuming the worst
     return false;
