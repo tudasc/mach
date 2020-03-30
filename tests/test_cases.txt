@@ -16,3 +16,5 @@ tests/two_messages/Ibarrier.c no
 tests/two_messages/Ibarrier_2.c no
 tests/two_messages/Ibarrier_3.c conflict
 tests/two_messages/Ibarrier_4.c no
+tests/hidden_in_functions/send.c conflict
+tests/hidden_in_functions/bar.c no
