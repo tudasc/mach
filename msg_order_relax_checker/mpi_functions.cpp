@@ -7,9 +7,14 @@
 #include "mpi_functions.h"
 #include <assert.h>
 
+#include "llvm/IR/InstrTypes.h"
 #include <llvm/Support/raw_ostream.h>
 
 using namespace llvm;
+
+bool is_mpi_call(CallBase *call) {
+  return call->getCalledFunction()->getName().contains("MPI");
+}
 
 struct mpi_functions *get_used_mpi_functions(llvm::Module &M) {
 

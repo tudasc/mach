@@ -11,10 +11,6 @@
 
 using namespace llvm;
 
-bool is_mpi_call(CallBase *call) {
-  return call->getCalledFunction()->getName().contains("MPI");
-}
-
 bool check_call_for_conflict(CallBase *mpi_call) {
 
   std::set<std::pair<BasicBlock *, bool>> to_check;
