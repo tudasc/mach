@@ -14,6 +14,9 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+
+#include "llvm/Analysis/TargetLibraryInfo.h"
+
 #include <assert.h>
 //#include <mpi.h>
 #include <cstring>
@@ -32,10 +35,34 @@ using namespace llvm;
 struct mpi_functions *mpi_func;
 struct implementation_specific_constants *mpi_implementation_specific_constants;
 
+std::set<Function *> get_stdlib_functions(Module &M,
+                                          const TargetLibraryInfo *TLI) {
+  LibFunc libF;
+
+  std::set<Function *> result;
+
+  for (auto &F : M) {
+
+    if (TLI->getLibFunc(F, libF)) {
+      errs() << F.getName() << " is PART OF stdlibs\n";
+    } else {
+      errs() << F.getName() << " is user defined (or another library )\n";
+    }
+  }
+
+  return result;
+}
+
 namespace {
 struct MSGOrderRelaxCheckerPass : public ModulePass {
   static char ID;
+
   MSGOrderRelaxCheckerPass() : ModulePass(ID) {}
+
+  // register that we require this analysis
+  void getAnalysisUsage(AnalysisUsage &AU) const {
+    AU.addRequired<TargetLibraryInfoWrapperPass>();
+  }
 
   // Pass starts here
   virtual bool runOnModule(Module &M) {
@@ -49,6 +76,11 @@ struct MSGOrderRelaxCheckerPass : public ModulePass {
       delete mpi_func;
       return false;
     }
+
+    const TargetLibraryInfo *TLI =
+        &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
+
+    get_stdlib_functions(M, TLI);
 
     mpi_implementation_specific_constants = get_implementation_specifics(M);
 
