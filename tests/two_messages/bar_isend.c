@@ -25,10 +25,10 @@ int main() {
     break;
   case 1:
     MPI_Isend(&a, 1, MPI_INT, 0, MSG_TAG, MPI_COMM_WORLD, &req);
-    MPI_Wait(2, &req, MPI_STATUS_IGNORE);
+    MPI_Wait(&req, MPI_STATUS_IGNORE);
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Isend(&b, 1, MPI_INT, 0, MSG_TAG, MPI_COMM_WORLD, &req);
-    MPI_Wait(2, &req, MPI_STATUS_IGNORE);
+    MPI_Wait(&req, MPI_STATUS_IGNORE);
     break;
   }
 
