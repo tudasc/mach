@@ -19,5 +19,7 @@ int main() {
     MPI_Send(&buffer, 1, MPI_INT, 0, MSG_TAG, MPI_COMM_WORLD);
     break;
   }
+
+  printf("Done\n");
   MPI_Finalize();
 }
