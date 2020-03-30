@@ -78,6 +78,11 @@ struct mpi_functions *get_used_mpi_functions(llvm::Module &M) {
       // no conflict with sending out msg that may overtake each other
       // maybe this blocking recv may even prevent a conflict
       result->unimportant_functions.insert(f);
+    } else if (f->getName().contains("MPI_Irecv")) {
+      result->mpi_Irecv = f;
+      // no conflict with sending out msg that may overtake each other
+      // maybe this blocking recv may even prevent a conflict
+      result->unimportant_functions.insert(f);
     } else if (f->getName().contains("MPI_Buffer_detach")) {
       result->mpi_buffer_detach = f;
       result->unimportant_functions.insert(f);

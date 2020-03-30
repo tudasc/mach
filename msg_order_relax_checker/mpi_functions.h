@@ -33,6 +33,7 @@ struct mpi_functions {
   llvm::Function *mpi_Irsend = nullptr;
 
   llvm::Function *mpi_recv = nullptr;
+  llvm::Function *mpi_Irecv = nullptr;
 
   llvm::Function *mpi_test = nullptr;
   llvm::Function *mpi_wait = nullptr;
