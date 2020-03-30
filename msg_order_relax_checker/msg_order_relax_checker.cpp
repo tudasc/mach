@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "conflict_detection.h"
+#include "function_coverage.h"
 #include "implementation_specific.h"
 #include "mpi_functions.h"
 
@@ -34,24 +35,7 @@ using namespace llvm;
 
 struct mpi_functions *mpi_func;
 struct implementation_specific_constants *mpi_implementation_specific_constants;
-
-std::set<Function *> get_stdlib_functions(Module &M,
-                                          const TargetLibraryInfo *TLI) {
-  LibFunc libF;
-
-  std::set<Function *> result;
-
-  for (auto &F : M) {
-
-    if (TLI->getLibFunc(F, libF)) {
-      errs() << F.getName() << " is PART OF stdlibs\n";
-    } else {
-      errs() << F.getName() << " is user defined (or another library )\n";
-    }
-  }
-
-  return result;
-}
+FunctionMetadata *function_metadata;
 
 namespace {
 struct MSGOrderRelaxCheckerPass : public ModulePass {
@@ -80,7 +64,7 @@ struct MSGOrderRelaxCheckerPass : public ModulePass {
     const TargetLibraryInfo *TLI =
         &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
 
-    get_stdlib_functions(M, TLI);
+    function_metadata = new FunctionMetadata(TLI, M);
 
     mpi_implementation_specific_constants = get_implementation_specifics(M);
 
@@ -100,6 +84,8 @@ struct MSGOrderRelaxCheckerPass : public ModulePass {
     errs() << "Successfully executed the example pass\n\n";
     delete mpi_func;
     delete mpi_implementation_specific_constants;
+
+    delete function_metadata;
 
     return false;
   }

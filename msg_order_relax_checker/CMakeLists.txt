@@ -7,6 +7,8 @@ add_library(msg_order_relax_checker MODULE
     conflict_detection.cpp
     implementation_specific.h
     implementation_specific.cpp
+    function_coverage.h
+    function_coverage.cpp
 )
 
 # Use C++11 to compile our pass (i.e., supply -std=c++11).
