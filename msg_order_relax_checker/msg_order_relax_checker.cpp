@@ -15,6 +15,8 @@
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
+#include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/BasicAliasAnalysis.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 
 #include <assert.h>
@@ -30,6 +32,7 @@
 
 using namespace llvm;
 
+std::map<llvm::Function *, llvm::AliasAnalysis *> AA;
 // declare dso_local i32 @MPI_Recv(i8*, i32, i32, i32, i32, i32,
 // %struct.MPI_Status*) #1
 
@@ -46,6 +49,7 @@ struct MSGOrderRelaxCheckerPass : public ModulePass {
   // register that we require this analysis
   void getAnalysisUsage(AnalysisUsage &AU) const {
     AU.addRequired<TargetLibraryInfoWrapperPass>();
+    AU.addRequiredTransitive<AAResultsWrapperPass>();
   }
 
   // Pass starts here
@@ -61,8 +65,15 @@ struct MSGOrderRelaxCheckerPass : public ModulePass {
       return false;
     }
 
-    const TargetLibraryInfo *TLI =
+    TargetLibraryInfo *TLI =
         &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
+
+    for (auto &func : M) {
+      if (!func.isDeclaration()) {
+        auto *result = &getAnalysis<AAResultsWrapperPass>(func).getAAResults();
+        AA.insert(std::make_pair(&func, result));
+      }
+    }
 
     function_metadata = new FunctionMetadata(TLI, M);
 

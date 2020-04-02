@@ -10,6 +10,10 @@
 #include "implementation_specific.h"
 #include "mpi_functions.h"
 
+#include "llvm/Analysis/AliasAnalysis.h"
+// todo need some refactoring for this...
+extern std::map<llvm::Function *, llvm::AliasAnalysis *> AA;
+
 using namespace llvm;
 
 // do i need to export it into header?
@@ -478,6 +482,22 @@ bool are_calls_conflicting(CallBase *orig_call, CallBase *conflict_call) {
       }
     }
   } // otherwise, we have not proven that the src might be different
+
+  errs() << "Comparing src/dest\n";
+
+  if (auto *inst = dyn_cast<Instruction>(src1)) {
+
+    Function *F = inst->getFunction();
+    AliasAnalysis *aa = AA[F];
+    auto alias_val = aa->alias(src1, src2);
+    errs() << "Comparing: Alias:" << alias_val << "\n";
+
+    auto constant = aa->pointsToConstantMemory(src1);
+    errs() << "constant1: " << constant << "\n";
+
+    constant = aa->pointsToConstantMemory(src1);
+    errs() << "constant2: " << constant << "\n";
+  }
 
   // check tag
   auto *tag1 = get_tag(orig_call);
