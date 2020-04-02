@@ -32,6 +32,8 @@ struct mpi_functions {
   llvm::Function *mpi_Issend = nullptr;
   llvm::Function *mpi_Irsend = nullptr;
 
+  llvm::Function *mpi_Sendrecv = nullptr;
+
   llvm::Function *mpi_recv = nullptr;
   llvm::Function *mpi_Irecv = nullptr;
 

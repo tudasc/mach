@@ -29,73 +29,77 @@ struct mpi_functions *get_used_mpi_functions(llvm::Module &M) {
   for (auto it = M.begin(); it != M.end(); ++it) {
     Function *f = &*it;
     errs() << f->getName() << "\n";
-    if (f->getName().contains("MPI_Init")) {
+    if (f->getName().equals("MPI_Init")) {
       result->mpi_init = f;
       // should not be called twice anyway, so no need to handle it
       // result->conflicting_functions.insert(f);
 
       // sync functions:
-    } else if (f->getName().contains("MPI_Finalize")) {
+    } else if (f->getName().equals("MPI_Finalize")) {
       result->mpi_finalize = f;
       result->sync_functions.insert(f);
-    } else if (f->getName().contains("MPI_Barrier")) {
+    } else if (f->getName().equals("MPI_Barrier")) {
       result->mpi_barrier = f;
       result->sync_functions.insert(f);
-    } else if (f->getName().contains("MPI_Ibarrier")) {
+    } else if (f->getName().equals("MPI_Ibarrier")) {
       result->mpi_Ibarrier = f;
       result->sync_functions.insert(f);
-    } else if (f->getName().contains("MPI_Allreduce")) {
+    } else if (f->getName().equals("MPI_Allreduce")) {
       result->mpi_allreduce = f;
       result->sync_functions.insert(f);
-    } else if (f->getName().contains("MPI_Iallreduce")) {
+    } else if (f->getName().equals("MPI_Iallreduce")) {
       result->mpi_Iallreduce = f;
       result->sync_functions.insert(f);
     }
 
     // different sending modes:
-    else if (f->getName().contains("MPI_Send")) {
+    else if (f->getName().equals("MPI_Send")) {
       result->mpi_send = f;
       result->conflicting_functions.insert(f);
-    } else if (f->getName().contains("MPI_Bsend")) {
+    } else if (f->getName().equals("MPI_Bsend")) {
       result->mpi_Bsend = f;
       result->conflicting_functions.insert(f);
-    } else if (f->getName().contains("MPI_Ssend")) {
+    } else if (f->getName().equals("MPI_Ssend")) {
       result->mpi_Ssend = f;
       result->conflicting_functions.insert(f);
-    } else if (f->getName().contains("MPI_Rsend")) {
+    } else if (f->getName().equals("MPI_Rsend")) {
       result->mpi_Rsend = f;
       result->conflicting_functions.insert(f);
-    } else if (f->getName().contains("MPI_Isend")) {
+    } else if (f->getName().equals("MPI_Isend")) {
       result->mpi_Isend = f;
       result->conflicting_functions.insert(f);
-    } else if (f->getName().contains("MPI_Ibsend")) {
+    } else if (f->getName().equals("MPI_Ibsend")) {
       result->mpi_Ibsend = f;
       result->conflicting_functions.insert(f);
-    } else if (f->getName().contains("MPI_Issend")) {
+    } else if (f->getName().equals("MPI_Issend")) {
       result->mpi_Issend = f;
       result->conflicting_functions.insert(f);
-    } else if (f->getName().contains("MPI_Irsend")) {
+    } else if (f->getName().equals("MPI_Irsend")) {
       result->mpi_Irsend = f;
       result->conflicting_functions.insert(f);
 
-    } else if (f->getName().contains("MPI_Recv")) {
+    } else if (f->getName().equals("MPI_Sendrecv")) {
+      result->mpi_Sendrecv = f;
+      result->conflicting_functions.insert(f);
+
+    } else if (f->getName().equals("MPI_Recv")) {
       result->mpi_recv = f;
       result->conflicting_functions.insert(f);
-    } else if (f->getName().contains("MPI_Irecv")) {
+    } else if (f->getName().equals("MPI_Irecv")) {
       result->mpi_Irecv = f;
       result->conflicting_functions.insert(f);
 
       // Other MPI functions, that themselves may not yield another conflict
-    } else if (f->getName().contains("MPI_Buffer_detach")) {
+    } else if (f->getName().equals("MPI_Buffer_detach")) {
       result->mpi_buffer_detach = f;
       result->unimportant_functions.insert(f);
-    } else if (f->getName().contains("MPI_Test")) {
+    } else if (f->getName().equals("MPI_Test")) {
       result->mpi_test = f;
       result->unimportant_functions.insert(f);
-    } else if (f->getName().contains("MPI_Wait")) {
+    } else if (f->getName().equals("MPI_Wait")) {
       result->mpi_wait = f;
       result->unimportant_functions.insert(f);
-    } else if (f->getName().contains("MPI_Waitall")) {
+    } else if (f->getName().equals("MPI_Waitall")) {
       result->mpi_waitall = f;
       result->unimportant_functions.insert(f);
     }
