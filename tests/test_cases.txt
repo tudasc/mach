@@ -29,3 +29,6 @@ tests/complex/gather_results_nondeterminally.c no
 tests/complex/master.c no
 tests/two_messages/sendrecv_no_conflict.c no
 tests/two_messages/sendrecv_conflict.c conflict
+tests/more_msg/conflict_1.c conflict
+tests/more_msg/wrong.c conflict
+tests/two_messages/MRecv.c conflict
