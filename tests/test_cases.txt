@@ -24,3 +24,5 @@ tests/hidden_in_functions/bar.c no
 tests/complex/stencil_allreduce.c conflict
 tests/complex/stencil_iterations.c conflict
 tests/complex/stencil_iterations_correct.c no
+tests/complex/gather_results.c no
+tests/complex/gather_results_nondeterminally.c no
