@@ -86,6 +86,7 @@ struct MSGOrderRelaxCheckerPass : public ModulePass {
     conflicts = conflicts || check_mpi_Ssend_conflicts(M);
     conflicts = conflicts || check_mpi_Rsend_conflicts(M);
 
+    conflicts = conflicts || check_mpi_sendrecv_conflicts(M);
     conflicts = conflicts || check_mpi_recv_conflicts(M);
     conflicts = conflicts || check_mpi_Irecv_conflicts(M);
 

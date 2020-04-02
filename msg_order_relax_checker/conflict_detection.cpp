@@ -21,7 +21,8 @@ std::vector<CallBase *> get_corresponding_wait(CallBase *call);
 
 // if scope ending.empty: normal send without a scope
 bool check_call_for_conflict(CallBase *mpi_call,
-                             std::vector<CallBase *> scope_endings) {
+                             std::vector<CallBase *> scope_endings,
+                             bool is_sending) {
 
   // tuple Instr, scope_ended,in_Ibarrier
   std::set<std::tuple<Instruction *, bool, bool>> to_check;
@@ -262,7 +263,7 @@ bool check_call_for_conflict(CallBase *mpi_call,
 
   // check for conflicts:
   for (auto *call : potential_conflicts) {
-    bool conflict = are_calls_conflicting(mpi_call, call);
+    bool conflict = are_calls_conflicting(mpi_call, call, is_sending);
     if (conflict) {
       // found at least one conflict, currently we can stop then
       return true;
@@ -273,7 +274,7 @@ bool check_call_for_conflict(CallBase *mpi_call,
   return false;
 }
 
-bool check_conflicts(llvm::Module &M, llvm::Function *f) {
+bool check_conflicts(llvm::Module &M, llvm::Function *f, bool is_sending) {
   if (f == nullptr) {
     // no messages: no conflict
     return false;
@@ -282,7 +283,8 @@ bool check_conflicts(llvm::Module &M, llvm::Function *f) {
   for (auto user : f->users()) {
     if (CallBase *call = dyn_cast<CallBase>(user)) {
       if (call->getCalledFunction() == f) {
-        if (check_call_for_conflict(call, std::vector<CallBase *>())) {
+        if (check_call_for_conflict(call, std::vector<CallBase *>(),
+                                    is_sending)) {
           // found conflict
           return true;
         }
@@ -299,11 +301,15 @@ bool check_conflicts(llvm::Module &M, llvm::Function *f) {
 }
 
 bool check_mpi_send_conflicts(Module &M) {
-  return check_conflicts(M, mpi_func->mpi_send);
+  return check_conflicts(M, mpi_func->mpi_send, true);
+}
+bool check_mpi_sendrecv_conflicts(Module &M) {
+  return check_conflicts(M, mpi_func->mpi_Sendrecv, true) ||
+         check_conflicts(M, mpi_func->mpi_Sendrecv, false);
 }
 
 bool check_mpi_recv_conflicts(Module &M) {
-  return check_conflicts(M, mpi_func->mpi_recv);
+  return check_conflicts(M, mpi_func->mpi_recv, false);
 }
 
 bool check_mpi_Irecv_conflicts(Module &M) {
@@ -318,7 +324,7 @@ bool check_mpi_Irecv_conflicts(Module &M) {
     if (CallBase *call = dyn_cast<CallBase>(user)) {
       if (call->getCalledFunction() == f) {
         auto scope_endings = get_corresponding_wait(call);
-        if (check_call_for_conflict(call, scope_endings)) {
+        if (check_call_for_conflict(call, scope_endings, false)) {
           // found conflict
           return true;
         }
@@ -354,7 +360,7 @@ bool check_mpi_Isend_conflicts(Module &M) {
     if (CallBase *call = dyn_cast<CallBase>(user)) {
       if (call->getCalledFunction() == f) {
         auto scope_endings = get_corresponding_wait(call);
-        if (check_call_for_conflict(call, scope_endings)) {
+        if (check_call_for_conflict(call, scope_endings, true)) {
           // found conflict
           return true;
         }
@@ -390,7 +396,7 @@ bool check_mpi_Bsend_conflicts(Module &M) {
   for (auto user : f->users()) {
     if (CallBase *call = dyn_cast<CallBase>(user)) {
       if (call->getCalledFunction() == f) {
-        if (check_call_for_conflict(call, scope_endings)) {
+        if (check_call_for_conflict(call, scope_endings, true)) {
           // found conflict
           return true;
         }
@@ -461,7 +467,8 @@ bool can_prove_val_different(Value *val_a, Value *val_b) {
   return false;
 }
 
-bool are_calls_conflicting(CallBase *orig_call, CallBase *conflict_call) {
+bool are_calls_conflicting(CallBase *orig_call, CallBase *conflict_call,
+                           bool is_send) {
 
   errs() << "\n";
   orig_call->dump();
@@ -494,15 +501,15 @@ bool are_calls_conflicting(CallBase *orig_call, CallBase *conflict_call) {
   // statically prove different communicators
 
   // check src
-  auto *src1 = get_src(orig_call);
-  auto *src2 = get_src(conflict_call);
+  auto *src1 = get_src(orig_call, is_send);
+  auto *src2 = get_src(conflict_call, is_send);
   if (can_prove_val_different(src1, src2)) {
     return false;
   }
 
   // check tag
-  auto *tag1 = get_tag(orig_call);
-  auto *tag2 = get_tag(conflict_call);
+  auto *tag1 = get_tag(orig_call, is_send);
+  auto *tag2 = get_tag(conflict_call, is_send);
   if (can_prove_val_different(tag1, tag2)) {
     return false;
   } // otherwise, we have not proven that the tag is be different
@@ -587,6 +594,9 @@ Value *get_communicator(CallBase *mpi_call) {
              mpi_call->getCalledFunction() == mpi_func->mpi_Irecv) {
     total_num_args = 7;
     communicator_arg_pos = 5;
+  } else if (mpi_call->getCalledFunction() == mpi_func->mpi_Sendrecv) {
+    total_num_args = 12;
+    communicator_arg_pos = 10;
   } else {
     errs() << mpi_call->getCalledFunction()->getName()
            << ": This MPI function is currently not supported\n";
@@ -598,7 +608,7 @@ Value *get_communicator(CallBase *mpi_call) {
   return mpi_call->getArgOperand(communicator_arg_pos);
 }
 
-Value *get_src(CallBase *mpi_call) {
+Value *get_src(CallBase *mpi_call, bool is_send) {
 
   unsigned int total_num_args = 0;
   unsigned int src_arg_pos = 0;
@@ -607,16 +617,24 @@ Value *get_src(CallBase *mpi_call) {
       mpi_call->getCalledFunction() == mpi_func->mpi_Bsend ||
       mpi_call->getCalledFunction() == mpi_func->mpi_Ssend ||
       mpi_call->getCalledFunction() == mpi_func->mpi_Rsend) {
+    assert(is_send);
     total_num_args = 6;
     src_arg_pos = 3;
   } else if (mpi_call->getCalledFunction() == mpi_func->mpi_Isend) {
+    assert(is_send);
     total_num_args = 7;
     src_arg_pos = 3;
   } else if (mpi_call->getCalledFunction() == mpi_func->mpi_recv ||
              mpi_call->getCalledFunction() == mpi_func->mpi_Irecv) {
+    assert(!is_send);
     total_num_args = 7;
     src_arg_pos = 3;
-
+  } else if (mpi_call->getCalledFunction() == mpi_func->mpi_Sendrecv) {
+    total_num_args = 12;
+    if (is_send)
+      src_arg_pos = 3;
+    else
+      src_arg_pos = 8;
   } else {
     errs() << mpi_call->getCalledFunction()->getName()
            << ": This MPI function is currently not supported\n";
@@ -628,7 +646,7 @@ Value *get_src(CallBase *mpi_call) {
   return mpi_call->getArgOperand(src_arg_pos);
 }
 
-Value *get_tag(CallBase *mpi_call) {
+Value *get_tag(CallBase *mpi_call, bool is_send) {
 
   unsigned int total_num_args = 0;
   unsigned int tag_arg_pos = 0;
@@ -637,15 +655,24 @@ Value *get_tag(CallBase *mpi_call) {
       mpi_call->getCalledFunction() == mpi_func->mpi_Bsend ||
       mpi_call->getCalledFunction() == mpi_func->mpi_Ssend ||
       mpi_call->getCalledFunction() == mpi_func->mpi_Rsend) {
+    assert(is_send);
     total_num_args = 6;
     tag_arg_pos = 4;
   } else if (mpi_call->getCalledFunction() == mpi_func->mpi_Isend) {
+    assert(is_send);
     total_num_args = 7;
     tag_arg_pos = 4;
   } else if (mpi_call->getCalledFunction() == mpi_func->mpi_recv ||
              mpi_call->getCalledFunction() == mpi_func->mpi_Irecv) {
+    assert(!is_send);
     total_num_args = 7;
     tag_arg_pos = 4;
+  } else if (mpi_call->getCalledFunction() == mpi_func->mpi_Sendrecv) {
+    total_num_args = 12;
+    if (is_send)
+      tag_arg_pos = 9;
+    else
+      tag_arg_pos = 9;
   } else {
     errs() << mpi_call->getCalledFunction()->getName()
            << ": This MPI function is currently not supported\n";
