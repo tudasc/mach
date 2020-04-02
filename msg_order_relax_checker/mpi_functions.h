@@ -41,7 +41,9 @@ struct mpi_functions {
   llvm::Function *mpi_buffer_detach = nullptr;
 
   llvm::Function *mpi_barrier = nullptr;
+  llvm::Function *mpi_allreduce = nullptr;
   llvm::Function *mpi_Ibarrier = nullptr;
+  llvm::Function *mpi_Iallreduce = nullptr;
 
   std::set<llvm::Function *>
       conflicting_functions; // may result in a conflict for msg overtaking

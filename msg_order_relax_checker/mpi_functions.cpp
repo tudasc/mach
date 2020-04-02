@@ -44,6 +44,12 @@ struct mpi_functions *get_used_mpi_functions(llvm::Module &M) {
     } else if (f->getName().contains("MPI_Ibarrier")) {
       result->mpi_Ibarrier = f;
       result->sync_functions.insert(f);
+    } else if (f->getName().contains("MPI_Allreduce")) {
+      result->mpi_allreduce = f;
+      result->sync_functions.insert(f);
+    } else if (f->getName().contains("MPI_Iallreduce")) {
+      result->mpi_Iallreduce = f;
+      result->sync_functions.insert(f);
     }
 
     // different sending modes:

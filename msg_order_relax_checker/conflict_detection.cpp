@@ -47,6 +47,8 @@ bool check_call_for_conflict(CallBase *mpi_call,
   // to have multiple Ibarriers interleaved. (meaning calling Ibar, Ibar, Wait,
   // Wait) but our analysis will not cover multiple ibarriers, we only care
   // about the first encountered
+  // Iallreduce has the same function a a barrier, so we do not differentiate
+  // between them here
   bool in_Ibarrier = false;
   std::vector<CallBase *> i_barrier_scope_end;
 
@@ -89,9 +91,42 @@ bool check_call_for_conflict(CallBase *mpi_call,
               // else: could not prove same communicator: pretend barrier isnt
               // there for our analysis
             }
+          } else if (call->getCalledFunction() == mpi_func->mpi_Iallreduce) {
+            if (in_Ibarrier) {
+              errs() << "Why do you use multiple interleaved Ibarrier's? I "
+                        "don't see a usecase for it.\n";
+            } else {
+
+              assert(call->getNumArgOperands() == 7 &&
+                     "MPI_Iallreduce has 7 args");
+              if (get_communicator(mpi_call) == call->getArgOperand(5)) {
+                if (!i_barrier_scope_end.empty()) {
+                  errs() << "Warning: parsing too many Ibarriers\n"
+                         << "Analysis result is still correct, but false "
+                            "positives are more likely";
+
+                } else {
+                  in_Ibarrier = true;
+                  i_barrier_scope_end = get_corresponding_wait(call);
+                }
+              }
+              // else: could not prove same communicator: pretend barrier isnt
+              // there for our analysis
+            }
           } else if (call->getCalledFunction() == mpi_func->mpi_barrier) {
             assert(call->getNumArgOperands() == 1 && "MPI_Barrier has 1 args");
             if (get_communicator(mpi_call) == call->getArgOperand(0)) {
+
+              current_inst = nullptr;
+              errs() << "call to " << call->getCalledFunction()->getName()
+                     << " is a sync point, no overtaking possible beyond it\n";
+            }
+            // else: could not prove that barrier is in the same communicator:
+            // continue analysis
+          } else if (call->getCalledFunction() == mpi_func->mpi_allreduce) {
+            assert(call->getNumArgOperands() == 6 &&
+                   "MPI_Allreduce has 6 args");
+            if (get_communicator(mpi_call) == call->getArgOperand(5)) {
 
               current_inst = nullptr;
               errs() << "call to " << call->getCalledFunction()->getName()
@@ -476,7 +511,8 @@ std::vector<CallBase *> get_corresponding_wait(CallBase *call) {
            call->getCalledFunction() == mpi_func->mpi_Ibsend ||
            call->getCalledFunction() == mpi_func->mpi_Issend ||
            call->getCalledFunction() == mpi_func->mpi_Irsend ||
-           call->getCalledFunction() == mpi_func->mpi_Irecv);
+           call->getCalledFunction() == mpi_func->mpi_Irecv ||
+           call->getCalledFunction() == mpi_func->mpi_Iallreduce);
   }
 
   Value *req = call->getArgOperand(req_arg_pos);
