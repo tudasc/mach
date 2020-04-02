@@ -27,3 +27,5 @@ tests/complex/stencil_iterations_correct.c no
 tests/complex/gather_results.c no
 tests/complex/gather_results_nondeterminally.c no
 tests/complex/master.c no
+tests/two_messages/sendrecv_no_conflict.c no
+tests/two_messages/sendrecv_conflict.c conflict
