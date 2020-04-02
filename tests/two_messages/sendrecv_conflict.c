@@ -16,14 +16,12 @@ int main() {
   case 0:
     MPI_Sendrecv(&a, 1, MPI_INT, 1, MSG_TAG, &b, 1, MPI_INT, 1, MSG_TAG,
                  MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    MPI_Barrier(MPI_COMM_WORLD);
     MPI_Send(&a, 1, MPI_INT, 1, MSG_TAG, MPI_COMM_WORLD);
     break;
   case 1:
+    MPI_Recv(&a, 1, MPI_INT, 0, MSG_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     MPI_Sendrecv(&a, 1, MPI_INT, 0, MSG_TAG, &b, 1, MPI_INT, 0, MSG_TAG,
                  MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    MPI_Barrier(MPI_COMM_WORLD);
-    MPI_Recv(&a, 1, MPI_INT, 0, MSG_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     break;
   }
   MPI_Finalize();
