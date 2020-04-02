@@ -434,6 +434,123 @@ bool check_mpi_Rsend_conflicts(Module &M) {
   return false;
 }
 
+// TODO this analysis does not work if a thread gets a pointer to another
+// thread's stack, but whoever does that is dumb anyway...
+bool can_prove_val_different(Value *val_a, Value *val_b) {
+
+  errs() << "Comparing: \n";
+  val_a->dump();
+  val_b->dump();
+
+  if (val_a->getType() != val_b->getType()) {
+    // this should not happen anyway
+    assert(false && "Trying comparing values of different types.");
+    return true;
+  }
+
+  if (auto *c1 = dyn_cast<Constant>(val_a)) {
+    if (auto *c2 = dyn_cast<Constant>(val_b)) {
+      if (c1 != c2) {
+        // different constants
+        errs() << "Different\n";
+        return true;
+      }
+    }
+  }
+  // could not prove difference
+  return false;
+  // dead code
+  if (auto *inst1 = dyn_cast<Instruction>(val_a)) {
+    if (auto *inst2 = dyn_cast<Instruction>(val_b)) {
+      // cannot prove that result of instruction always differ from constant
+
+      // TODO is we use globals this assertion might not hold
+      assert(inst1->getFunction() == inst2->getFunction());
+
+      if (auto *l1 = dyn_cast<LoadInst>(inst1)) {
+        if (auto *l2 = dyn_cast<LoadInst>(inst2)) {
+          Function *F = inst1->getFunction();
+          // get the corresponding AA result
+          AliasAnalysis *aa = AA[F];
+
+          auto *p1 = l1->getPointerOperand();
+          auto *p2 = l2->getPointerOperand();
+
+          if (aa->alias(p1, p2) == AliasResult::NoAlias) {
+            assert(!aa->pointsToConstantMemory(p1) &&
+                   !aa->pointsToConstantMemory(p2) &&
+                   "A Constant Propagation should eliminate the need for this "
+                   "load beforehand");
+            if (isa<Argument>(p1) || isa<Argument>(p2)) {
+              // a pointer given to the function might contain any value, we
+              // cannot proove difference I suspect this to happen very
+              // unlikely, as AA might not proove no alisa in this cases anyway
+              return false;
+            }
+
+            // TODO do i have to consider globals in another way? (multiple
+            // threads)
+
+            // list of all values written to the ptr
+            std::vector<Value *> list_2;
+            for (auto *u : p2->users()) {
+
+              if (auto *w = dyn_cast<StoreInst>(u)) {
+                if (w->getPointerOperand() != p2) {
+                  // we could not say anything if someone else may use this
+                  // ptr...
+                  return false;
+                } else {
+                  list_2.push_back(w->getValueOperand());
+                }
+              }
+            }
+
+            // compare if all stored values differ in all occasions
+            for (auto *u : p1->users()) {
+
+              if (auto *w = dyn_cast<StoreInst>(u)) {
+                if (w->getPointerOperand() != p1) {
+                  // we could not say anything if someone else may use this
+                  // ptr...
+                  return false;
+                } else {
+                  for (auto *v : list_2) {
+
+                    if (!can_prove_val_different(w->getValueOperand(), v)) {
+                      // even if one occasion is same, we might load the same
+                      // val
+                      return false;
+                    }
+                  }
+                }
+              }
+            }
+            // here: have proven all stored values to the ptrs are different and
+            // no alias
+            return true;
+
+          } else { // at least AliasResult::MayAlias
+            // might be the same values
+            return false;
+          }
+        }
+
+      } // end if load instruction
+
+      // TODO cmp arithmetic
+      if (inst1->getOpcode() == inst2->getOpcode()) {
+
+      } else {
+        // no assertzion what totally different instructions my yield
+        return false;
+      }
+    }
+  }
+  errs() << "might be same\n";
+  return false;
+}
+
 bool are_calls_conflicting(CallBase *orig_call, CallBase *conflict_call) {
 
   errs() << "\n";
@@ -459,56 +576,25 @@ bool are_calls_conflicting(CallBase *orig_call, CallBase *conflict_call) {
   // check communicator
   auto *comm1 = get_communicator(orig_call);
   auto *comm2 = get_communicator(conflict_call);
-
-  if (auto *c1 = dyn_cast<Constant>(comm1)) {
-    if (auto *c2 = dyn_cast<Constant>(comm2)) {
-      if (c1 != c2) {
-        // different communicators
-        return false;
-      }
-    }
-  } // otherwise, we have not proven that the communicator is be different
-    // TODO: (very advanced) if e.g. mpi comm split is used, we might be able to
-    // statically prove different communicators
+  if (can_prove_val_different(comm1, comm2)) {
+    return false;
+  }
+  // otherwise, we have not proven that the communicator is be different
+  // TODO: (very advanced) if e.g. mpi comm split is used, we might be able to
+  // statically prove different communicators
 
   // check src
   auto *src1 = get_src(orig_call);
   auto *src2 = get_src(conflict_call);
-  if (auto *s1 = dyn_cast<Constant>(src1)) {
-    if (auto *s2 = dyn_cast<Constant>(src2)) {
-      if (s1 != s2) {
-        // different sources
-        return false;
-      }
-    }
-  } // otherwise, we have not proven that the src might be different
-
-  errs() << "Comparing src/dest\n";
-
-  if (auto *inst = dyn_cast<Instruction>(src1)) {
-
-    Function *F = inst->getFunction();
-    AliasAnalysis *aa = AA[F];
-    auto alias_val = aa->alias(src1, src2);
-    errs() << "Comparing: Alias:" << alias_val << "\n";
-
-    auto constant = aa->pointsToConstantMemory(src1);
-    errs() << "constant1: " << constant << "\n";
-
-    constant = aa->pointsToConstantMemory(src1);
-    errs() << "constant2: " << constant << "\n";
+  if (can_prove_val_different(src1, src2)) {
+    return false;
   }
 
   // check tag
   auto *tag1 = get_tag(orig_call);
   auto *tag2 = get_tag(conflict_call);
-  if (auto *t1 = dyn_cast<Constant>(tag1)) {
-    if (auto *t2 = dyn_cast<Constant>(tag2)) {
-      if (t1 != t2) {
-        // different tags
-        return false;
-      }
-    }
+  if (can_prove_val_different(tag1, tag2)) {
+    return false;
   } // otherwise, we have not proven that the tag is be different
 
   // cannot disprove conflict, have to assume it indeed relays on msg ordering
