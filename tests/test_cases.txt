@@ -21,3 +21,6 @@ tests/two_messages/Ibarrier_4.c no
 tests/hidden_in_functions/send.c conflict
 tests/hidden_in_functions/send_2.c conflict
 tests/hidden_in_functions/bar.c no
+tests/complex/stencil_allreduce.c conflict
+tests/complex/stencil_iterations.c conflict
+tests/complex/stencil_iterations_correct.c no
