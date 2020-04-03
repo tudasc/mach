@@ -25,6 +25,7 @@
 #include <utility>
 #include <vector>
 
+#include "additional_assertions.h"
 #include "conflict_detection.h"
 #include "function_coverage.h"
 #include "implementation_specific.h"
@@ -96,6 +97,17 @@ struct MSGOrderRelaxCheckerPass : public ModulePass {
       errs() << "No conflicts detected, try to use mpi_assert_allow_overtaking "
                 "for better performance\n";
     }
+
+    if (check_no_any_tag(M)) {
+      errs() << "You can also safely specify mpi_assert_no_any_tag for better "
+                "performance\n";
+    }
+
+    if (check_no_any_source(M)) {
+      errs() << "You can also safely specify mpi_assert_no_any_source for "
+                "better performance\n";
+    }
+
     errs() << "Successfully executed the example pass\n\n";
     delete mpi_func;
     delete mpi_implementation_specific_constants;
