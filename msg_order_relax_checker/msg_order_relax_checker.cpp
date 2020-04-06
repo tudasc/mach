@@ -66,8 +66,11 @@ struct MSGOrderRelaxCheckerPass : public ModulePass {
       return false;
     }
 
+    // give it any function, the Function is not used at all
+    // dont know why the api has changed here...
     TargetLibraryInfo *TLI =
-        &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
+        &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(
+            *mpi_func->mpi_init);
 
     for (auto &func : M) {
       if (!func.isDeclaration()) {
