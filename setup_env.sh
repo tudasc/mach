@@ -1,5 +1,7 @@
 #!/bin/bash
 
+module use /home/tj75qeje/.modulefiles
+
 # load required modules
 ml git cmake gcc llvm
 
