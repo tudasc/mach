@@ -19,6 +19,13 @@ using namespace llvm;
 // do i need to export it into header?
 std::vector<CallBase *> get_corresponding_wait(CallBase *call);
 std::vector<CallBase *> get_scope_endings(CallBase *call);
+std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>>
+check_conflicts(llvm::Module &M, llvm::Function *f, bool is_send);
+std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>>
+check_call_for_conflict(llvm::CallBase *mpi_call, bool is_send);
+
+bool are_calls_conflicting(llvm::CallBase *orig_call,
+                           llvm::CallBase *conflict_call, bool is_send);
 
 // if scope ending.empty: normal send without a scope
 std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>>
