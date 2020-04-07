@@ -106,7 +106,7 @@ struct MSGOrderRelaxCheckerPass : public ModulePass {
                 "better performance\n";
     }
 
-    errs() << "Successfully executed the example pass\n\n";
+    errs() << "Successfully executed the pass\n\n";
     delete mpi_func;
     delete mpi_implementation_specific_constants;
 
