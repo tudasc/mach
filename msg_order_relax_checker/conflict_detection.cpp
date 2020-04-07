@@ -18,11 +18,15 @@ using namespace llvm;
 
 // do i need to export it into header?
 std::vector<CallBase *> get_corresponding_wait(CallBase *call);
+std::vector<CallBase *> get_scope_endings(CallBase *call);
 
 // if scope ending.empty: normal send without a scope
-bool check_call_for_conflict(CallBase *mpi_call,
-                             std::vector<CallBase *> scope_endings,
-                             bool is_sending) {
+std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>>
+check_call_for_conflict(CallBase *mpi_call,
+                        std::vector<CallBase *> scope_endings,
+                        bool is_sending) {
+
+  std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>> conflicts;
 
   // tuple Instr, scope_ended,in_Ibarrier
   std::set<std::tuple<Instruction *, bool, bool>> to_check;
@@ -184,8 +188,7 @@ bool check_call_for_conflict(CallBase *mpi_call,
         if (function_metadata->may_conflict(call->getCalledFunction())) {
           errs() << "Call To " << call->getCalledFunction()->getName()
                  << "May conflict\n";
-          // conflict found
-          return true;
+          conflicts.push_back(std::make_pair(mpi_call, call));
         } else if (function_metadata->will_sync(call->getCalledFunction())) {
           // sync point detected
           current_inst = nullptr;
@@ -197,7 +200,7 @@ bool check_call_for_conflict(CallBase *mpi_call,
                  << "will result in a conflict, for safety we will assume it "
                     "does \n";
           // assume conflict
-          return true;
+          conflicts.push_back(std::make_pair(mpi_call, call));
         }
 
         // for sanity:
@@ -261,33 +264,34 @@ bool check_call_for_conflict(CallBase *mpi_call,
     }
   } // end while
 
+  // TODO: std::filter
   // check for conflicts:
   for (auto *call : potential_conflicts) {
     bool conflict = are_calls_conflicting(mpi_call, call, is_sending);
     if (conflict) {
       // found at least one conflict, currently we can stop then
-      return true;
+      conflicts.push_back(std::make_pair(mpi_call, call));
     }
   }
 
   // no conflict found
-  return false;
+  return conflicts;
 }
 
-bool check_conflicts(llvm::Module &M, llvm::Function *f, bool is_sending) {
+std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>>
+check_conflicts(llvm::Module &M, llvm::Function *f, bool is_sending) {
   if (f == nullptr) {
-    // no messages: no conflict
-    return false;
+    // no messages: no conflict: return empty vector
+    return {};
   }
+  std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>> result;
 
   for (auto user : f->users()) {
     if (CallBase *call = dyn_cast<CallBase>(user)) {
       if (call->getCalledFunction() == f) {
-        if (check_call_for_conflict(call, std::vector<CallBase *>(),
-                                    is_sending)) {
-          // found conflict
-          return true;
-        }
+        auto scope_endings = get_scope_endings(call);
+        auto temp = check_call_for_conflict(call, scope_endings, is_sending);
+        result.insert(result.end(), temp.begin(), temp.end());
 
       } else {
         call->dump();
@@ -296,38 +300,69 @@ bool check_conflicts(llvm::Module &M, llvm::Function *f, bool is_sending) {
     }
   }
 
-  // no conflicts found
-  return false;
+  return result;
 }
 
-bool check_mpi_send_conflicts(Module &M) {
-  return check_conflicts(M, mpi_func->mpi_send, true);
+std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>>
+check_mpi_send_conflicts(Module &M) {
+  std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>> result;
+  auto temp = check_conflicts(M, mpi_func->mpi_send, true);
+  result.insert(result.end(), temp.begin(), temp.end());
+
+  // TODO copy comment for R and S send here: nothing to do
+
+  temp = check_conflicts(M, mpi_func->mpi_Bsend, true);
+  result.insert(result.end(), temp.begin(), temp.end());
+
+  temp = check_conflicts(M, mpi_func->mpi_Isend, true);
+  result.insert(result.end(), temp.begin(), temp.end());
+
+  // sending part of sendrecv
+  temp = check_conflicts(M, mpi_func->mpi_Sendrecv, true);
+  result.insert(result.end(), temp.begin(), temp.end());
+
+  return result;
 }
-bool check_mpi_sendrecv_conflicts(Module &M) {
-  return check_conflicts(M, mpi_func->mpi_Sendrecv, true) ||
-         check_conflicts(M, mpi_func->mpi_Sendrecv, false);
+std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>>
+check_mpi_sendrecv_conflicts(Module &M) {
+  assert(false && "DECREPARTED");
+  return {};
 }
 
-bool check_mpi_recv_conflicts(Module &M) {
-  return check_conflicts(M, mpi_func->mpi_recv, false);
+std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>>
+check_mpi_recv_conflicts(Module &M) {
+  std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>> result;
+
+  auto temp = check_conflicts(M, mpi_func->mpi_recv, false);
+  result.insert(result.end(), temp.begin(), temp.end());
+
+  // recv part of sendrecv
+  temp = check_conflicts(M, mpi_func->mpi_Sendrecv, true);
+  result.insert(result.end(), temp.begin(), temp.end());
+
+  temp = check_conflicts(M, mpi_func->mpi_Irecv, false);
+  result.insert(result.end(), temp.begin(), temp.end());
+
+  return result;
 }
 
-bool check_mpi_Irecv_conflicts(Module &M) {
+std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>>
+check_mpi_Irecv_conflicts(Module &M) {
 
   Function *f = mpi_func->mpi_Irecv;
   if (f == nullptr) {
     // no messages: no conflict
-    return false;
+    return {};
   }
+
+  std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>> result;
 
   for (auto user : f->users()) {
     if (CallBase *call = dyn_cast<CallBase>(user)) {
       if (call->getCalledFunction() == f) {
         auto scope_endings = get_corresponding_wait(call);
-        if (check_call_for_conflict(call, scope_endings, false)) {
-          // found conflict
-          return true;
-        }
+        auto temp = check_call_for_conflict(call, scope_endings, false);
+        result.insert(result.end(), temp.begin(), temp.end());
 
       } else {
         call->dump();
@@ -337,33 +372,34 @@ bool check_mpi_Irecv_conflicts(Module &M) {
   }
 
   // no conflicts found
-  return false;
+  return result;
 }
 
-bool check_mpi_Isend_conflicts(Module &M) {
+std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>>
+check_mpi_Isend_conflicts(Module &M) {
 
   if (mpi_func->mpi_Ibsend != nullptr || mpi_func->mpi_Issend != nullptr ||
       mpi_func->mpi_Irsend != nullptr) {
     errs() << "This analysis does not cover the usage of any of Ib Ir or "
               "Issend operations. Replace them with another send mode like "
               "Isend instead\n";
-    return false;
+    return {};
   }
 
   Function *f = mpi_func->mpi_Isend;
   if (f == nullptr) {
     // no messages: no conflict
-    return false;
+    return {};
   }
+
+  std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>> result;
 
   for (auto user : f->users()) {
     if (CallBase *call = dyn_cast<CallBase>(user)) {
       if (call->getCalledFunction() == f) {
         auto scope_endings = get_corresponding_wait(call);
-        if (check_call_for_conflict(call, scope_endings, true)) {
-          // found conflict
-          return true;
-        }
+        auto temp = check_call_for_conflict(call, scope_endings, true);
+        result.insert(result.end(), temp.begin(), temp.end());
 
       } else {
         call->dump();
@@ -372,47 +408,11 @@ bool check_mpi_Isend_conflicts(Module &M) {
     }
   }
 
-  // no conflicts found
-  return false;
+  return result;
 }
 
-bool check_mpi_Bsend_conflicts(Module &M) {
-
-  Function *f = mpi_func->mpi_Bsend;
-  if (f == nullptr) {
-    // no messages: no conflict
-    return false;
-  }
-
-  std::vector<CallBase *> scope_endings;
-  for (auto *user : mpi_func->mpi_buffer_detach->users()) {
-    if (auto *buffer_detach_call = dyn_cast<CallBase>(user)) {
-      assert(buffer_detach_call->getCalledFunction() ==
-             mpi_func->mpi_buffer_detach);
-      scope_endings.push_back(buffer_detach_call);
-    }
-  }
-
-  for (auto user : f->users()) {
-    if (CallBase *call = dyn_cast<CallBase>(user)) {
-      if (call->getCalledFunction() == f) {
-        if (check_call_for_conflict(call, scope_endings, true)) {
-          // found conflict
-          return true;
-        }
-
-      } else {
-        call->dump();
-        errs() << "\nWhy do you do that?\n";
-      }
-    }
-  }
-
-  // no conflicts found
-  return false;
-}
-
-bool check_mpi_Ssend_conflicts(Module &M) {
+std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>>
+check_mpi_Ssend_conflicts(Module &M) {
   // return check_conflicts(M,mpi_func->mpi_Ssend);
   // Ssend may not yield to conflicts regarding overtaking messages:
   // when Ssend returns: the receiver have begun execution of the matching recv
@@ -420,10 +420,11 @@ bool check_mpi_Ssend_conflicts(Module &M) {
 
   // this ssend can overtake another send ofc but this conflict will be handled
   // when the overtakend send is analyzed
-  return false;
+  return {};
 }
 
-bool check_mpi_Rsend_conflicts(Module &M) {
+std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>>
+check_mpi_Rsend_conflicts(Module &M) {
   // return check_conflicts(M, mpi_func->mpi_Rsend);
 
   // standard:
@@ -437,7 +438,7 @@ bool check_mpi_Rsend_conflicts(Module &M) {
   // This means, the sender have started to execute the matching send, therefore
   // it has the same as Ssend.
 
-  return false;
+  return {};
 }
 
 // TODO this analysis does not work if a thread gets a pointer to another
@@ -518,6 +519,31 @@ bool are_calls_conflicting(CallBase *orig_call, CallBase *conflict_call,
   return true;
 }
 
+std::vector<CallBase *> get_scope_endings(CallBase *call) {
+
+  auto *F = call->getCalledFunction();
+  if (F == mpi_func->mpi_Irecv || F == mpi_func->mpi_Isend ||
+      F == mpi_func->mpi_Iallreduce || F == mpi_func->mpi_Ibarrier ||
+      F == mpi_func->mpi_Issend) {
+    return get_corresponding_wait(call);
+  } else if (F == mpi_func->mpi_Bsend ||
+             F == mpi_func->mpi_Ibsend) { // search for all mpi buffer detach
+
+    std::vector<CallBase *> scope_endings;
+    for (auto *user : mpi_func->mpi_buffer_detach->users()) {
+      if (auto *buffer_detach_call = dyn_cast<CallBase>(user)) {
+        assert(buffer_detach_call->getCalledFunction() ==
+               mpi_func->mpi_buffer_detach);
+        scope_endings.push_back(buffer_detach_call);
+      }
+    }
+    return scope_endings;
+  } else {
+    // n I.. call: no scope ending
+    return {};
+  }
+}
+
 std::vector<CallBase *> get_corresponding_wait(CallBase *call) {
 
   // errs() << "Analyzing scope of \n";
@@ -529,13 +555,13 @@ std::vector<CallBase *> get_corresponding_wait(CallBase *call) {
     assert(call->getNumArgOperands() == 2);
     req_arg_pos = 1;
   } else {
-    assert(call->getNumArgOperands() == 7);
     assert(call->getCalledFunction() == mpi_func->mpi_Isend ||
            call->getCalledFunction() == mpi_func->mpi_Ibsend ||
            call->getCalledFunction() == mpi_func->mpi_Issend ||
            call->getCalledFunction() == mpi_func->mpi_Irsend ||
            call->getCalledFunction() == mpi_func->mpi_Irecv ||
            call->getCalledFunction() == mpi_func->mpi_Iallreduce);
+    assert(call->getNumArgOperands() == 7);
   }
 
   Value *req = call->getArgOperand(req_arg_pos);

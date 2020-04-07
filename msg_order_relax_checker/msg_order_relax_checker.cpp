@@ -83,18 +83,13 @@ struct MSGOrderRelaxCheckerPass : public ModulePass {
 
     mpi_implementation_specific_constants = get_implementation_specifics(M);
 
-    bool conflicts = false;
-    conflicts = conflicts || check_mpi_send_conflicts(M);
-    conflicts = conflicts || check_mpi_Isend_conflicts(M);
-    conflicts = conflicts || check_mpi_Bsend_conflicts(M);
-    conflicts = conflicts || check_mpi_Ssend_conflicts(M);
-    conflicts = conflicts || check_mpi_Rsend_conflicts(M);
+    std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>> send_conflicts =
+        check_mpi_send_conflicts(M);
 
-    conflicts = conflicts || check_mpi_sendrecv_conflicts(M);
-    conflicts = conflicts || check_mpi_recv_conflicts(M);
-    conflicts = conflicts || check_mpi_Irecv_conflicts(M);
+    std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>> recv_conflicts =
+        check_mpi_recv_conflicts(M);
 
-    if (conflicts)
+    if (!send_conflicts.empty() || !recv_conflicts.empty())
       errs() << "Message race conflicts detected\n";
     else {
       errs() << "No conflicts detected, try to use mpi_assert_allow_overtaking "

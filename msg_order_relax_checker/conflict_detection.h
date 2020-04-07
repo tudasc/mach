@@ -10,19 +10,31 @@
 
 #include "llvm/IR/InstrTypes.h"
 
-bool check_mpi_recv_conflicts(llvm::Module &M);
-bool check_mpi_Irecv_conflicts(llvm::Module &M);
+#include <vector>
 
-bool check_mpi_sendrecv_conflicts(llvm::Module &M);
+std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>>
+check_mpi_recv_conflicts(llvm::Module &M);
+std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>>
+check_mpi_Irecv_conflicts(llvm::Module &M);
 
-bool check_mpi_send_conflicts(llvm::Module &M);
-bool check_mpi_Isend_conflicts(llvm::Module &M);
-bool check_mpi_Bsend_conflicts(llvm::Module &M);
-bool check_mpi_Ssend_conflicts(llvm::Module &M);
-bool check_mpi_Rsend_conflicts(llvm::Module &M);
+std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>>
+check_mpi_sendrecv_conflicts(llvm::Module &M);
 
-bool check_conflicts(llvm::Module &M, llvm::Function *f, bool is_send);
-bool check_call_for_conflict(llvm::CallBase *mpi_call, bool is_send);
+std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>>
+check_mpi_send_conflicts(llvm::Module &M);
+std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>>
+check_mpi_Isend_conflicts(llvm::Module &M);
+std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>>
+check_mpi_Bsend_conflicts(llvm::Module &M);
+std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>>
+check_mpi_Ssend_conflicts(llvm::Module &M);
+std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>>
+check_mpi_Rsend_conflicts(llvm::Module &M);
+
+std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>>
+check_conflicts(llvm::Module &M, llvm::Function *f, bool is_send);
+std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>>
+check_call_for_conflict(llvm::CallBase *mpi_call, bool is_send);
 
 bool are_calls_conflicting(llvm::CallBase *orig_call,
                            llvm::CallBase *conflict_call, bool is_send);
