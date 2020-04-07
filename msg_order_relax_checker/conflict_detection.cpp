@@ -209,10 +209,6 @@ check_call_for_conflict(CallBase *mpi_call,
           // assume conflict
           conflicts.push_back(std::make_pair(mpi_call, call));
         }
-
-        // for sanity:
-        assert(function_metadata->is_unknown(call->getCalledFunction()) ==
-               false);
       }
     } // end if CallBase
 
