@@ -13,6 +13,10 @@ add_library(msg_order_relax_checker MODULE
     additional_assertions.cpp
 )
 
+# if one wants to use mpi
+#find_package(MPI REQUIRED)
+#target_link_libraries(msg_order_relax_checker PRIVATE MPI::MPI_C)
+
 # Use C++11 to compile our pass (i.e., supply -std=c++11).
 target_compile_features(msg_order_relax_checker PRIVATE cxx_range_for cxx_auto_type)
 
