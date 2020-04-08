@@ -15,19 +15,31 @@
 
 using namespace llvm;
 
-struct implementation_specific_constants *
-get_implementation_specifics(Module &M) {
+ImplementationSpecifics::ImplementationSpecifics(Module &M) {
 
-  struct implementation_specific_constants *result =
-      new struct implementation_specific_constants;
-  assert(result != nullptr);
+  // need it to use MPI_Type_size
+  MPI_Init(NULL, NULL);
 
-  result->COM_WORLD =
+  COMM_WORLD =
       ConstantInt::get(IntegerType::get(M.getContext(), 32), MPI_COMM_WORLD);
-  result->ANY_TAG =
-      ConstantInt::get(IntegerType::get(M.getContext(), 32), MPI_ANY_TAG);
-  result->ANY_SOURCE =
+  ANY_TAG = ConstantInt::get(IntegerType::get(M.getContext(), 32), MPI_ANY_TAG);
+  ANY_SOURCE =
       ConstantInt::get(IntegerType::get(M.getContext(), 32), MPI_ANY_SOURCE);
+}
+ImplementationSpecifics::~ImplementationSpecifics() { MPI_Finalize(); }
 
-  return result;
+int ImplementationSpecifics::get_size_of_mpi_type(llvm::Constant *type) {
+  // TODO if DataType is no integer type, this will break...
+
+  if (auto *i = dyn_cast<ConstantInt>(type)) {
+    auto mpi_type = i->getSExtValue();
+
+    int size = 0;
+    MPI_Type_size(mpi_type, &size);
+    return size;
+  }
+
+  else {
+    assert(false);
+  }
 }

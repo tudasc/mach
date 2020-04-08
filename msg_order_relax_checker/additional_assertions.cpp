@@ -23,7 +23,7 @@ bool check_any_tag_for_function(Function *f) {
         if (call->getCalledFunction() == f) {
           auto *tag = get_tag(call, false);
           if (auto *c = dyn_cast<Constant>(tag)) {
-            if (c == mpi_implementation_specific_constants->ANY_TAG) {
+            if (c == mpi_implementation_specifics->ANY_TAG) {
               return false;
             }
           }
@@ -47,7 +47,7 @@ bool check_any_source_for_function(Function *f) {
         if (call->getCalledFunction() == f) {
           auto *src = get_src(call, false);
           if (auto *c = dyn_cast<Constant>(src)) {
-            if (c == mpi_implementation_specific_constants->ANY_SOURCE) {
+            if (c == mpi_implementation_specifics->ANY_SOURCE) {
               return false;
             }
           }

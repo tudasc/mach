@@ -38,7 +38,7 @@ std::map<llvm::Function *, llvm::AliasAnalysis *> AA;
 // %struct.MPI_Status*) #1
 
 struct mpi_functions *mpi_func;
-struct implementation_specific_constants *mpi_implementation_specific_constants;
+struct ImplementationSpecifics *mpi_implementation_specifics;
 FunctionMetadata *function_metadata;
 
 namespace {
@@ -81,7 +81,7 @@ struct MSGOrderRelaxCheckerPass : public ModulePass {
 
     function_metadata = new FunctionMetadata(TLI, M);
 
-    mpi_implementation_specific_constants = get_implementation_specifics(M);
+    mpi_implementation_specifics = new ImplementationSpecifics(M);
 
     std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>> send_conflicts =
         check_mpi_send_conflicts(M);
@@ -108,7 +108,7 @@ struct MSGOrderRelaxCheckerPass : public ModulePass {
 
     errs() << "Successfully executed the pass\n\n";
     delete mpi_func;
-    delete mpi_implementation_specific_constants;
+    delete mpi_implementation_specifics;
 
     delete function_metadata;
 
