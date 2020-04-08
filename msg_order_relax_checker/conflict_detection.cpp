@@ -723,7 +723,7 @@ Value *get_tag(CallBase *mpi_call, bool is_send) {
   } else if (mpi_call->getCalledFunction() == mpi_func->mpi_Sendrecv) {
     total_num_args = 12;
     if (is_send)
-      tag_arg_pos = 9;
+      tag_arg_pos = 4;
     else
       tag_arg_pos = 9;
   } else {
