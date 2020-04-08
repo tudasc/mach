@@ -106,6 +106,11 @@ struct MSGOrderRelaxCheckerPass : public ModulePass {
                 "better performance\n";
     }
 
+    if (check_exact_length(M)) {
+      errs() << "You can also safely specify mpi_assert_exact_length for "
+                "better performance\n";
+    }
+
     errs() << "Successfully executed the pass\n\n";
     delete mpi_func;
     delete mpi_implementation_specifics;
