@@ -122,10 +122,12 @@ bool is_send_function(llvm::Function *f) {
   return f == mpi_func->mpi_send || f == mpi_func->mpi_Bsend ||
          f == mpi_func->mpi_Ssend || f == mpi_func->mpi_Rsend ||
          f == mpi_func->mpi_Isend || f == mpi_func->mpi_Ibsend ||
-         f == mpi_func->mpi_Irsend || f == mpi_func->mpi_Issend;
+         f == mpi_func->mpi_Irsend || f == mpi_func->mpi_Issend ||
+         f == mpi_func->mpi_Sendrecv;
 }
 
 bool is_recv_function(llvm::Function *f) {
   assert(f != nullptr);
-  return f == mpi_func->mpi_recv || f == mpi_func->mpi_Irecv;
+  return f == mpi_func->mpi_recv || f == mpi_func->mpi_Irecv ||
+         f == mpi_func->mpi_Sendrecv;
 }

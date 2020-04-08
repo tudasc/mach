@@ -312,7 +312,26 @@ check_mpi_send_conflicts(Module &M) {
   auto temp = check_conflicts(M, mpi_func->mpi_send, true);
   result.insert(result.end(), temp.begin(), temp.end());
 
-  // TODO copy comment for R and S send here: nothing to do
+  //  check_conflicts(M,mpi_func->mpi_Ssend);
+  // Ssend may not yield to conflicts regarding overtaking messages:
+  // when Ssend returns: the receiver have begun execution of the matching recv
+  // therefore further send operation may not overtake this one
+
+  // this ssend can overtake another send ofc but this conflict will be handled
+  // when the overtakend send is analyzed
+
+  //  check_conflicts(M, mpi_func->mpi_Rsend);
+
+  // standard:
+  // A send operation that uses the ready mode has the same semantics as a
+  // standard send operation, or a synchronous send operation; it is merely that
+  // the sender provides additional information to the system (namely that a
+  // matching receive is already posted), that can save some overhead. In a
+  // correct program, therefore, a ready send couldbe replaced by a standard
+  // send with no effect on the behavior of the program other than performance.
+
+  // This means, the sender have started to execute the matching send, therefore
+  // it has the same as Ssend.
 
   temp = check_conflicts(M, mpi_func->mpi_Bsend, true);
   result.insert(result.end(), temp.begin(), temp.end());
@@ -326,11 +345,6 @@ check_mpi_send_conflicts(Module &M) {
 
   return result;
 }
-std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>>
-check_mpi_sendrecv_conflicts(Module &M) {
-  assert(false && "DECREPARTED");
-  return {};
-}
 
 std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>>
 check_mpi_recv_conflicts(Module &M) {
@@ -340,108 +354,13 @@ check_mpi_recv_conflicts(Module &M) {
   result.insert(result.end(), temp.begin(), temp.end());
 
   // recv part of sendrecv
-  temp = check_conflicts(M, mpi_func->mpi_Sendrecv, true);
+  temp = check_conflicts(M, mpi_func->mpi_Sendrecv, false);
   result.insert(result.end(), temp.begin(), temp.end());
 
   temp = check_conflicts(M, mpi_func->mpi_Irecv, false);
   result.insert(result.end(), temp.begin(), temp.end());
 
   return result;
-}
-
-std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>>
-check_mpi_Irecv_conflicts(Module &M) {
-
-  Function *f = mpi_func->mpi_Irecv;
-  if (f == nullptr) {
-    // no messages: no conflict
-    return {};
-  }
-
-  std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>> result;
-
-  for (auto user : f->users()) {
-    if (CallBase *call = dyn_cast<CallBase>(user)) {
-      if (call->getCalledFunction() == f) {
-        auto scope_endings = get_corresponding_wait(call);
-        auto temp = check_call_for_conflict(call, scope_endings, false);
-        result.insert(result.end(), temp.begin(), temp.end());
-
-      } else {
-        call->dump();
-        errs() << "\nWhy do you do that?\n";
-      }
-    }
-  }
-
-  // no conflicts found
-  return result;
-}
-
-std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>>
-check_mpi_Isend_conflicts(Module &M) {
-
-  if (mpi_func->mpi_Ibsend != nullptr || mpi_func->mpi_Issend != nullptr ||
-      mpi_func->mpi_Irsend != nullptr) {
-    errs() << "This analysis does not cover the usage of any of Ib Ir or "
-              "Issend operations. Replace them with another send mode like "
-              "Isend instead\n";
-    return {};
-  }
-
-  Function *f = mpi_func->mpi_Isend;
-  if (f == nullptr) {
-    // no messages: no conflict
-    return {};
-  }
-
-  std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>> result;
-
-  for (auto user : f->users()) {
-    if (CallBase *call = dyn_cast<CallBase>(user)) {
-      if (call->getCalledFunction() == f) {
-        auto scope_endings = get_corresponding_wait(call);
-        auto temp = check_call_for_conflict(call, scope_endings, true);
-        result.insert(result.end(), temp.begin(), temp.end());
-
-      } else {
-        call->dump();
-        errs() << "\nWhy do you do that?\n";
-      }
-    }
-  }
-
-  return result;
-}
-
-std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>>
-check_mpi_Ssend_conflicts(Module &M) {
-  // return check_conflicts(M,mpi_func->mpi_Ssend);
-  // Ssend may not yield to conflicts regarding overtaking messages:
-  // when Ssend returns: the receiver have begun execution of the matching recv
-  // therefore further send operation may not overtake this one
-
-  // this ssend can overtake another send ofc but this conflict will be handled
-  // when the overtakend send is analyzed
-  return {};
-}
-
-std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>>
-check_mpi_Rsend_conflicts(Module &M) {
-  // return check_conflicts(M, mpi_func->mpi_Rsend);
-
-  // standard:
-  // A send operation that uses the ready mode has the same semantics as a
-  // standard send operation, or a synchronous send operation; it is merely that
-  // the sender provides additional information to the system (namely that a
-  // matching receive is already posted), that can save some overhead. In a
-  // correct program, therefore, a ready send couldbe replaced by a standard
-  // send with no effect on the behavior of the program other than performance.
-
-  // This means, the sender have started to execute the matching send, therefore
-  // it has the same as Ssend.
-
-  return {};
 }
 
 // TODO this analysis does not work if a thread gets a pointer to another
@@ -481,10 +400,8 @@ bool are_calls_conflicting(CallBase *orig_call, CallBase *conflict_call,
   errs() << "\n";
 
   // if one is send and the other a recv: fond a match which means no conflict
-  if ((is_send_function(orig_call->getCalledFunction()) &&
-       is_recv_function(conflict_call->getCalledFunction())) ||
-      (is_recv_function(orig_call->getCalledFunction()) &&
-       is_send_function(conflict_call->getCalledFunction()))) {
+  if ((is_send && is_recv_function(conflict_call->getCalledFunction())) ||
+      (!is_send && is_send_function(conflict_call->getCalledFunction()))) {
     return false;
   }
 
