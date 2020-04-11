@@ -1,42 +1,41 @@
-tests/one_message.c no
-tests/two_messages/mpi_any_conflict.c conflict
-tests/two_messages/mpi_any_conflict_2.c conflict
-tests/two_messages/bar_seperated.c no
-tests/two_messages/no_conflict.c no
-tests/two_messages/solvable_conflict.c conflict
-tests/two_messages/wrong_bar.c conflict
-tests/two_messages/wrong_bar_cocrrected.c conflict
-tests/two_messages/wrong_bar_cocrrected_2.c conflict
-tests/two_messages/red_seperated.c conflict
-tests/two_messages/allreduce_seperated.c no
-tests/two_messages/bar_isend.c no
-tests/two_messages/bar_bsend.c conflict
-tests/two_messages/bar_isend_2.c conflict
-tests/two_messages/bar_bsend_2.c no
-tests/two_messages/bar_irecv.c conflict
-tests/two_messages/Ibarrier.c no
-tests/two_messages/Ibarrier_2.c no
-tests/two_messages/Ibarrier_3.c conflict
-tests/two_messages/Ibarrier_4.c no
-tests/hidden_in_functions/send.c conflict
-tests/hidden_in_functions/send_2.c conflict
-tests/hidden_in_functions/bar.c no
-tests/complex/stencil_allreduce.c conflict
-tests/complex/stencil_iterations.c conflict
-tests/complex/stencil_iterations_correct.c no
-tests/complex/gather_results.c no
-tests/complex/gather_results_nondeterminally.c no
-tests/complex/master.c no
-tests/two_messages/sendrecv_no_conflict.c no
-tests/two_messages/sendrecv_conflict.c conflict
-tests/more_msg/conflict_1.c conflict
-tests/more_msg/wrong.c conflict
-tests/two_messages/MRecv.c conflict
-tests/more_msg/MRecv.c conflict
-tests/more_msg/conflict_1.c conflict
-tests/more_msg/conflict_2.c conflict
-tests/more_msg/wrong.c conflict
-tests/more_msg/waitall.c conflict
-tests/more_msg/waitall_bar.c conflict
-tests/more_msg/waitall_bar_2.c no
-tests/more_msg/waitall_bar_3.c conflict
+tests/one_message.c no NO_any_tag NO_any_source exact_length
+tests/two_messages/mpi_any_conflict.c conflict any_tag any_source exact_length
+tests/two_messages/mpi_any_conflict_2.c conflict any_tag any_source exact_length
+tests/two_messages/bar_seperated.c no NO_any_tag NO_any_source exact_length
+tests/two_messages/no_conflict.c no NO_any_tag NO_any_source exact_length
+tests/two_messages/solvable_conflict.c conflict NO_any_tag NO_any_source exact_length
+tests/two_messages/wrong_bar.c conflict NO_any_tag NO_any_source exact_length
+tests/two_messages/wrong_bar_cocrrected.c conflict NO_any_tag NO_any_source exact_length
+tests/two_messages/wrong_bar_cocrrected_2.c conflict NO_any_tag NO_any_source exact_length
+tests/two_messages/red_seperated.c conflict NO_any_tag NO_any_source exact_length
+tests/two_messages/allreduce_seperated.c no NO_any_tag NO_any_source exact_length
+tests/two_messages/bar_isend.c no NO_any_tag NO_any_source exact_length
+tests/two_messages/bar_bsend.c conflict NO_any_tag NO_any_source exact_length
+tests/two_messages/bar_isend_2.c conflict NO_any_tag NO_any_source exact_length
+tests/two_messages/bar_bsend_2.c no NO_any_tag NO_any_source exact_length
+tests/two_messages/bar_irecv.c conflict NO_any_tag NO_any_source exact_length
+tests/two_messages/Ibarrier.c no NO_any_tag NO_any_source exact_length
+tests/two_messages/Ibarrier_2.c no NO_any_tag NO_any_source exact_length
+tests/two_messages/Ibarrier_3.c conflict NO_any_tag NO_any_source exact_length
+tests/two_messages/Ibarrier_4.c no NO_any_tag NO_any_source exact_length
+tests/hidden_in_functions/send.c conflict NO_any_tag NO_any_source exact_length
+tests/hidden_in_functions/send_2.c conflict NO_any_tag NO_any_source exact_length
+tests/hidden_in_functions/bar.c no NO_any_tag NO_any_source exact_length
+tests/complex/stencil_allreduce.c conflict NO_any_tag NO_any_source exact_length
+tests/complex/stencil_iterations.c conflict NO_any_tag NO_any_source exact_length
+tests/complex/stencil_iterations_correct.c no NO_any_tag NO_any_source exact_length
+tests/complex/gather_results.c no NO_any_tag NO_any_source exact_length
+tests/complex/gather_results_nondeterminally.c no NO_any_tag any_source exact_length
+tests/complex/master.c no NO_any_tag any_source exact_length
+tests/two_messages/sendrecv_no_conflict.c no NO_any_tag NO_any_source exact_length
+tests/two_messages/sendrecv_conflict.c conflict NO_any_tag NO_any_source exact_length
+tests/two_messages/MRecv.c conflict NO_any_tag NO_any_source exact_length
+tests/more_msg/MRecv.c conflict NO_any_tag NO_any_source exact_length
+tests/more_msg/conflict_1.c conflict NO_any_tag NO_any_source exact_length
+tests/more_msg/conflict_2.c conflict NO_any_tag NO_any_source exact_length
+tests/more_msg/wrong.c conflict NO_any_tag any_source exact_length
+tests/more_msg/waitall.c conflict NO_any_tag NO_any_source exact_length
+tests/more_msg/waitall_bar.c conflict NO_any_tag NO_any_source exact_length
+tests/more_msg/waitall_bar_2.c no NO_any_tag NO_any_source exact_length
+tests/more_msg/waitall_bar_3.c conflict NO_any_tag NO_any_source exact_length
+tests/one_message_not_matching_length.c no NO_any_tag NO_any_source NO_exact_length

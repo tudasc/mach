@@ -17,8 +17,13 @@ run_test () {
 test_name=$1
 expected_result=$2
 
+any_tag=$3
+any_source=$4
+exact_length=$4
+
 # 0 means test failed!
-# 1 means one test succeded!
+# 1 means test succeded!
+# 2 means crashed!
 exitcode=0
 
 output=$(./run.sh $test_name 2>&1)
@@ -39,6 +44,49 @@ elif [ "$expected_result" == "conflict" ]; then
 		exitcode=1
 	fi
 fi
+
+#NO_any_tag NO_any_source exact_length
+# if one of the othere assertion failes: test fails
+
+if [ "$any_tag" == "any_tag" -a "$( echo $output | grep "You can also safely specify mpi_assert_no_any_tag")" != "" ]; then
+	exitcode=1
+	if [ "$VERBOSE" == true ]; then
+		echo -e "${Red}Wrongly${NC} assert_no_any_tag"
+	fi
+fi
+
+if [ "$any_tag" == "NO_any_tag" -a "$( echo $output | grep "You can also safely specify mpi_assert_no_any_tag")" == "" ]; then
+	if [ "$VERBOSE" == true ]; then
+		echo -e "${Yellow}Missing${NC} assert_no_any_tag"
+	fi
+fi
+
+if [ "$any_source" == "any_source" -a "$( echo $output | grep "You can also safely specify mpi_assert_no_any_source")" != "" ]; then
+	exitcode=1
+	if [ "$VERBOSE" == true ]; then
+		echo -e "${Red}Wrongly${NC} assert_no_any_source"
+	fi
+fi
+
+if [ "$any_source" == "NO_any_source" -a "$( echo $output | grep "You can also safely specify mpi_assert_no_any_source")" == "" ]; then
+	if [ "$VERBOSE" == true ]; then
+		echo -e "${Yellow}Missing${NC} assert_no_any_source"
+	fi
+fi
+
+if [ "$exact_length" == "NO_exact_length" -a "$( echo $output | grep "You can also safely specify mpi_assert_exact_length")" != "" ]; then
+	exitcode=1
+	if [ "$VERBOSE" == true ]; then
+		echo -e "${Red}Wrongly${NC} assert_exact_length"
+	fi
+fi
+
+if [ "$exact_length" == "exact_length" -a "$( echo $output | grep "You can also safely specify mpi_assert_exact_length")" == "" ]; then
+	if [ "$VERBOSE" == true ]; then
+		echo -e "${Yellow}Missing${NC} assert_exact_length"
+	fi
+fi
+
 
 return $exitcode
 }
