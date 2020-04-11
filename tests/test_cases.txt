@@ -39,3 +39,4 @@ tests/more_msg/waitall_bar.c conflict NO_any_tag NO_any_source exact_length
 tests/more_msg/waitall_bar_2.c no NO_any_tag NO_any_source exact_length
 tests/more_msg/waitall_bar_3.c conflict NO_any_tag NO_any_source exact_length
 tests/one_message_not_matching_length.c no NO_any_tag NO_any_source NO_exact_length
+tests/more_msg/not_matching_length.c conflict any_tag NO_any_source NO_exact_length
