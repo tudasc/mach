@@ -1,6 +1,6 @@
-add_library(msg_order_relax_checker MODULE
+add_library(mpi_assertion_checker MODULE
     # List your source files here.
-    msg_order_relax_checker.cpp
+    mpi_assertion_checker.cpp
     mpi_functions.h
     mpi_functions.cpp
     conflict_detection.h
@@ -15,14 +15,14 @@ add_library(msg_order_relax_checker MODULE
 
 # if one wants to use mpi
 #find_package(MPI REQUIRED)
-#target_link_libraries(msg_order_relax_checker PRIVATE MPI::MPI_C)
+#target_link_libraries(mpi_assertion_checker PRIVATE MPI::MPI_C)
 
 # Use C++11 to compile our pass (i.e., supply -std=c++11).
-target_compile_features(msg_order_relax_checker PRIVATE cxx_range_for cxx_auto_type)
+target_compile_features(mpi_assertion_checker PRIVATE cxx_range_for cxx_auto_type)
 
 # LLVM is (typically) built with no C++ RTTI. We need to match that;
 # otherwise, we'll get linker errors about missing RTTI data.
-set_target_properties(msg_order_relax_checker PROPERTIES
+set_target_properties(mpi_assertion_checker PROPERTIES
     COMPILE_FLAGS "-fno-rtti -Wall -Wextra -Wno-unused-parameter -g"
 )
 
