@@ -1,10 +1,3 @@
-/*
- * mpi_functions.h
- *
- *  Created on: 22.03.2020
- *      Author: Tim Jammer
- */
-
 #ifndef MSG_ORDER_RELAX_CHECKER_MPI_FUNCTIONS_H_
 #define MSG_ORDER_RELAX_CHECKER_MPI_FUNCTIONS_H_
 

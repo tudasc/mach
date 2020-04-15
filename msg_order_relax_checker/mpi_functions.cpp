@@ -1,9 +1,3 @@
-/*
- * mpi_functions.cpp
- *
- *  Created on: 22.03.2020
- *      Author: Tim Jammer
- */
 #include "mpi_functions.h"
 #include <assert.h>
 

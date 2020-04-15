@@ -1,10 +1,3 @@
-/*
- * conflict_detection.h
- *
- *  Created on: 25.03.2020
- *      Author: Tim Jammer
- */
-
 #ifndef MSG_ORDER_RELAX_CHECKER_CONFLICT_DETECTION_H_
 #define MSG_ORDER_RELAX_CHECKER_CONFLICT_DETECTION_H_
 

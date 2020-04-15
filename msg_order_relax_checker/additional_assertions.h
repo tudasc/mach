@@ -1,10 +1,3 @@
-/*
- * additional_assertions.h
- *
- *  Created on: 03.04.2020
- *      Author: Tim Jammer
- */
-
 #ifndef MSG_ORDER_RELAX_CHECKER_ADDITIONAL_ASSERTIONS_H_
 #define MSG_ORDER_RELAX_CHECKER_ADDITIONAL_ASSERTIONS_H_
 

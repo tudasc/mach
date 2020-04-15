@@ -1,10 +1,3 @@
-/*
- * implementation_specific.cpp
- *
- *  Created on: 25.03.2020
- *      Author: Tim Jammer
- */
-
 #include "implementation_specific.h"
 
 #include "llvm/IR/Constants.h"

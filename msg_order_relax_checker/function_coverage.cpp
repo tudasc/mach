@@ -1,10 +1,3 @@
-/*
- * function_coverage.cpp
- *
- *  Created on: 30.03.2020
- *      Author: Tim Jammer
- */
-
 #include "function_coverage.h"
 #include "mpi_functions.h"
 

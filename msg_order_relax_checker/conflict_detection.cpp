@@ -1,10 +1,3 @@
-/*
- * conflict_detection.cpp
- *
- *  Created on: 25.03.2020
- *      Author: Tim Jammer
- */
-
 #include "conflict_detection.h"
 #include "function_coverage.h"
 #include "implementation_specific.h"

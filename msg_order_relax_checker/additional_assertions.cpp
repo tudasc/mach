@@ -1,9 +1,3 @@
-/*
- * additional_assertions.cpp
- *
- *  Created on: 03.04.2020
- *      Author: Tim Jammer
- */
 #include "additional_assertions.h"
 #include "conflict_detection.h"
 #include "implementation_specific.h"

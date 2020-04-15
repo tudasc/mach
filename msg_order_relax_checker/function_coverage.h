@@ -1,10 +1,3 @@
-/*
- * function_coverage.h
- *
- *  Created on: 30.03.2020
- *      Author: Tim Jammer
- */
-
 #ifndef MSG_ORDER_RELAX_CHECKER_FUNCTION_COVERAGE_H_
 #define MSG_ORDER_RELAX_CHECKER_FUNCTION_COVERAGE_H_
 
