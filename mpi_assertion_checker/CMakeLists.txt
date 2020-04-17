@@ -11,6 +11,7 @@ add_library(mpi_assertion_checker MODULE
     function_coverage.cpp
     additional_assertions.h
     additional_assertions.cpp
+    debug.h
 )
 
 # if one wants to use mpi
