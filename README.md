@@ -7,7 +7,7 @@ Building
 -----------
 Building the Pass with Cmake is quite straightforward:
 
-''mkdir build; cd build; cmake ..; make -j 4''
+``mkdir build; cd build; cmake ..; make -j 4``
 You need LLVM/clang version 10.0.
 
 Running
