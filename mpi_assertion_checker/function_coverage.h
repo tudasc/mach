@@ -14,8 +14,8 @@
    limitations under the License.
  */
 
-#ifndef MSG_ORDER_RELAX_CHECKER_FUNCTION_COVERAGE_H_
-#define MSG_ORDER_RELAX_CHECKER_FUNCTION_COVERAGE_H_
+#ifndef MACH_FUNCTION_COVERAGE_H_
+#define MACH_FUNCTION_COVERAGE_H_
 
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/IR/Function.h"

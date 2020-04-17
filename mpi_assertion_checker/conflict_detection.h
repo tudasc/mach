@@ -14,8 +14,8 @@
    limitations under the License.
  */
 
-#ifndef MSG_ORDER_RELAX_CHECKER_CONFLICT_DETECTION_H_
-#define MSG_ORDER_RELAX_CHECKER_CONFLICT_DETECTION_H_
+#ifndef MACH_CONFLICT_DETECTION_H_
+#define MACH_CONFLICT_DETECTION_H_
 
 #include "llvm/IR/InstrTypes.h"
 
@@ -31,4 +31,4 @@ llvm::Value *get_communicator(llvm::CallBase *mpi_call);
 llvm::Value *get_src(llvm::CallBase *mpi_call, bool is_send);
 llvm::Value *get_tag(llvm::CallBase *mpi_call, bool is_send);
 
-#endif /* MSG_ORDER_RELAX_CHECKER_CONFLICT_DETECTION_H_ */
+#endif /* MACH_CONFLICT_DETECTION_H_ */
