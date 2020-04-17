@@ -14,21 +14,15 @@
    limitations under the License.
  */
 
-#ifndef MACH_CONFLICT_DETECTION_H_
-#define MACH_CONFLICT_DETECTION_H_
+#ifndef MACH_DEBUG_H
+#define MACH_DEBUG_H
 
-#include "llvm/IR/InstrTypes.h"
+//#define DEBUG_MACH_PASS 1
 
-#include <vector>
+#if DEBUG_MACH_PASS == 1
+#define Debug(x) x
+#else
+#define Debug(x)
+#endif
 
-std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>>
-check_mpi_recv_conflicts(llvm::Module &M);
-
-std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>>
-check_mpi_send_conflicts(llvm::Module &M);
-
-llvm::Value *get_communicator(llvm::CallBase *mpi_call);
-llvm::Value *get_src(llvm::CallBase *mpi_call, bool is_send);
-llvm::Value *get_tag(llvm::CallBase *mpi_call, bool is_send);
-
-#endif /* MACH_CONFLICT_DETECTION_H_ */
+#endif

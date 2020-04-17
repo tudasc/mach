@@ -14,8 +14,8 @@
    limitations under the License.
  */
 
-#ifndef MSG_ORDER_RELAX_CHECKER_IMPLEMENTATION_SPECIFIC_H_
-#define MSG_ORDER_RELAX_CHECKER_IMPLEMENTATION_SPECIFIC_H_
+#ifndef MACH_IMPLEMENTATION_SPECIFIC_H_
+#define MACH_IMPLEMENTATION_SPECIFIC_H_
 
 #include "llvm/IR/Constant.h"
 class ImplementationSpecifics {
@@ -34,4 +34,4 @@ public:
 // created and deleted in main
 extern ImplementationSpecifics *mpi_implementation_specifics;
 
-#endif /* MSG_ORDER_RELAX_CHECKER_IMPLEMENTATION_SPECIFIC_H_ */
+#endif /* MACH_IMPLEMENTATION_SPECIFIC_H_ */

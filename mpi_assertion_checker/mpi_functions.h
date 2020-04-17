@@ -14,8 +14,8 @@
    limitations under the License.
  */
 
-#ifndef MSG_ORDER_RELAX_CHECKER_MPI_FUNCTIONS_H_
-#define MSG_ORDER_RELAX_CHECKER_MPI_FUNCTIONS_H_
+#ifndef MACH_MPI_FUNCTIONS_H_
+#define MACH_MPI_FUNCTIONS_H_
 
 #include "llvm/IR/Function.h"
 #include "llvm/IR/InstrTypes.h"
@@ -74,4 +74,4 @@ bool is_mpi_function(llvm::Function *f);
 bool is_send_function(llvm::Function *f);
 bool is_recv_function(llvm::Function *f);
 
-#endif /* MSG_ORDER_RELAX_CHECKER_MPI_FUNCTIONS_H_ */
+#endif /* MACH_MPI_FUNCTIONS_H_ */

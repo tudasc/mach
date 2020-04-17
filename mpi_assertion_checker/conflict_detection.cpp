@@ -20,6 +20,8 @@
 #include "mpi_functions.h"
 
 #include "llvm/Analysis/AliasAnalysis.h"
+
+#include "debug.h"
 // todo need some refactoring for this...
 extern std::map<llvm::Function *, llvm::AliasAnalysis *> AA;
 
@@ -143,8 +145,9 @@ check_call_for_conflict(CallBase *mpi_call,
             if (get_communicator(mpi_call) == call->getArgOperand(0)) {
 
               current_inst = nullptr;
-              errs() << "call to " << call->getCalledFunction()->getName()
-                     << " is a sync point, no overtaking possible beyond it\n";
+              Debug(errs() << "call to " << call->getCalledFunction()->getName()
+                           << " is a sync point, no overtaking possible beyond "
+                              "it\n";);
             }
             // else: could not prove that barrier is in the same communicator:
             // continue analysis
@@ -154,8 +157,9 @@ check_call_for_conflict(CallBase *mpi_call,
             if (get_communicator(mpi_call) == call->getArgOperand(5)) {
 
               current_inst = nullptr;
-              errs() << "call to " << call->getCalledFunction()->getName()
-                     << " is a sync point, no overtaking possible beyond it\n";
+              Debug(errs() << "call to " << call->getCalledFunction()->getName()
+                           << " is a sync point, no overtaking possible beyond "
+                              "it\n";);
             }
             // else: could not prove that barrier is in the same communicator:
             // continue analysis
@@ -163,8 +167,10 @@ check_call_for_conflict(CallBase *mpi_call,
           } else if (call->getCalledFunction() == mpi_func->mpi_finalize) {
             // no mpi beyond this
             current_inst = nullptr;
-            errs() << "call to " << call->getCalledFunction()->getName()
-                   << " is a sync point, no overtaking possible beyond it\n";
+            Debug(
+                errs()
+                    << "call to " << call->getCalledFunction()->getName()
+                    << " is a sync point, no overtaking possible beyond it\n";);
           }
 
           // no need to analyze this path further, a sync point will stop msg
@@ -185,7 +191,8 @@ check_call_for_conflict(CallBase *mpi_call,
             assert(scope_ended);
             // no mpi beyond this
             current_inst = nullptr;
-            errs() << "Completed Ibarrier, no overtaking possible beyond it\n";
+            Debug(errs() << "Completed Ibarrier, no overtaking possible beyond "
+                            "it\n";);
           }
 
           if (!scope_ended &&
@@ -202,19 +209,21 @@ check_call_for_conflict(CallBase *mpi_call,
       } else { // no mpi function
 
         if (function_metadata->may_conflict(call->getCalledFunction())) {
-          errs() << "Call To " << call->getCalledFunction()->getName()
-                 << "May conflict\n";
+          Debug(errs() << "Call To " << call->getCalledFunction()->getName()
+                       << "May conflict\n";);
           conflicts.push_back(std::make_pair(mpi_call, call));
         } else if (function_metadata->will_sync(call->getCalledFunction())) {
           // sync point detected
           current_inst = nullptr;
-          errs() << "call to " << call->getCalledFunction()->getName()
-                 << " will sync, no overtaking possible beyond it\n";
+          Debug(errs() << "call to " << call->getCalledFunction()->getName()
+                       << " will sync, no overtaking possible beyond it\n";);
         } else if (function_metadata->is_unknown(call->getCalledFunction())) {
-          errs() << "Could not determine if call to "
-                 << call->getCalledFunction()->getName()
-                 << "will result in a conflict, for safety we will assume it "
-                    "does \n";
+          Debug(
+              errs()
+                  << "Could not determine if call to "
+                  << call->getCalledFunction()->getName()
+                  << "will result in a conflict, for safety we will assume it "
+                     "does \n";);
           // assume conflict
           conflicts.push_back(std::make_pair(mpi_call, call));
         }
@@ -402,11 +411,9 @@ bool can_prove_val_different(Value *val_a, Value *val_b) {
 bool are_calls_conflicting(CallBase *orig_call, CallBase *conflict_call,
                            bool is_send) {
 
-  errs() << "\n";
-  orig_call->dump();
-  errs() << "potential conflict detected: ";
-  conflict_call->dump();
-  errs() << "\n";
+  Debug(errs() << "\n"; orig_call->dump();
+        errs() << "potential conflict detected: "; conflict_call->dump();
+        errs() << "\n";);
 
   // if one is send and the other a recv: fond a match which means no conflict
   if ((is_send && is_recv_function(conflict_call->getCalledFunction())) ||
@@ -479,9 +486,7 @@ bool is_waitall_matching(ConstantInt *begin_index, ConstantInt *match_index,
   assert(call->getCalledFunction() == mpi_func->mpi_waitall);
   assert(call->getNumArgOperands() == 3);
 
-  // debug
-  call->dump();
-  errs() << "Is this waitall matching?";
+  Debug(call->dump(); errs() << "Is this waitall matching?";);
 
   if (auto *count = dyn_cast<ConstantInt>(call->getArgOperand(0))) {
 
@@ -492,13 +497,13 @@ bool is_waitall_matching(ConstantInt *begin_index, ConstantInt *match_index,
     if (begin + num_req > match && match >= begin) {
       // proven, that this request is part of the requests waited for by the
       // call
-      errs() << "  TRUE\n";
+      Debug(errs() << "  TRUE\n";);
       return true;
     }
   }
 
   // could not prove true
-  errs() << "  FALSE\n";
+  Debug(errs() << "  FALSE\n";);
   return false;
 }
 
@@ -607,8 +612,9 @@ std::vector<CallBase *> get_corresponding_wait(CallBase *call) {
         }   // end if gep has a simple structure
         else {
           // debug
-          gep->dump();
-          errs() << "This structure is currently too complicated to analyze";
+          Debug(gep->dump();
+                errs()
+                << "This structure is currently too complicated to analyze";);
         }
       }
 
