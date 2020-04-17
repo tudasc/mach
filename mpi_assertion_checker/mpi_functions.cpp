@@ -38,7 +38,6 @@ struct mpi_functions *get_used_mpi_functions(llvm::Module &M) {
 
   for (auto it = M.begin(); it != M.end(); ++it) {
     Function *f = &*it;
-    errs() << f->getName() << "\n";
     if (f->getName().equals("MPI_Init")) {
       result->mpi_init = f;
       // should not be called twice anyway, so no need to handle it

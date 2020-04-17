@@ -19,6 +19,8 @@
 
 #include "llvm/IR/InstIterator.h"
 
+#include "debug.h"
+
 using namespace llvm;
 
 FunctionMetadata::FunctionMetadata(const llvm::TargetLibraryInfo *TLI,
@@ -74,9 +76,8 @@ FunctionMetadata::FunctionMetadata(const llvm::TargetLibraryInfo *TLI,
         }
       }
 
-      errs() << F.getName() << ": has_mpi: " << has_mpi
-             << " will_sync: " << has_sync << " may_conflict" << may_conflict
-             << "\n";
+      Debug(errs() << F.getName() << ": has_mpi: " << has_mpi << " will_sync: "
+                   << has_sync << " may_conflict" << may_conflict << "\n";);
       auto info = std::make_tuple(unknown, has_mpi, has_sync, may_conflict);
       const auto status =
           this->function_metadata.insert(std::make_pair(&F, info));

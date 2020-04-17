@@ -43,6 +43,7 @@
 
 #include "additional_assertions.h"
 #include "conflict_detection.h"
+#include "debug.h"
 #include "function_coverage.h"
 #include "implementation_specific.h"
 #include "mpi_functions.h"
@@ -72,8 +73,7 @@ struct MSGOrderRelaxCheckerPass : public ModulePass {
   // Pass starts here
   virtual bool runOnModule(Module &M) {
 
-    // debug:
-    M.dump();
+    Debug(M.dump(););
 
     mpi_func = get_used_mpi_functions(M);
     if (!is_mpi_used(mpi_func)) {
