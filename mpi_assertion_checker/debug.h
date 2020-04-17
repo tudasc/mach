@@ -17,7 +17,7 @@
 #ifndef MACH_DEBUG_H
 #define MACH_DEBUG_H
 
-#define DEBUG_MACH_PASS 1
+//#define DEBUG_MACH_PASS 1
 
 #if DEBUG_MACH_PASS == 1
 #define Debug(x) x
