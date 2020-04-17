@@ -123,4 +123,6 @@ int ImplementationSpecifics::get_size_of_mpi_type(llvm::Constant *type) {
               "not supported";
     assert(false);
   }
+  // will not invoke this anyway, assert false will stop execution beforehand
+  return -1;
 }
