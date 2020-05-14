@@ -12,7 +12,7 @@ add_library(mpi_assertion_checker MODULE
     additional_assertions.h
     additional_assertions.cpp
     debug.h
-    analysis_result.h
+    analysis_results.h
 )
 
 # if one wants to use mpi
