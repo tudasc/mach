@@ -1,17 +1,17 @@
 /*
-  Copyright 2020 Tim Jammer
+ Copyright 2020 Tim Jammer
 
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
-       http://www.apache.org/licenses/LICENSE-2.0
+ http://www.apache.org/licenses/LICENSE-2.0
 
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
  */
 
 #include "llvm/ADT/APInt.h"
@@ -34,6 +34,7 @@
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/BasicAliasAnalysis.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
+#include <llvm/Analysis/LoopInfo.h>
 
 #include <assert.h>
 //#include <mpi.h>
@@ -42,6 +43,7 @@
 #include <vector>
 
 #include "additional_assertions.h"
+#include "analysis_results.h"
 #include "conflict_detection.h"
 #include "debug.h"
 #include "function_coverage.h"
@@ -50,7 +52,10 @@
 
 using namespace llvm;
 
+// result of the function analysis passes
 std::map<llvm::Function *, llvm::AliasAnalysis *> AA;
+std::map<llvm::Function *, llvm::LoopInfo *> LI;
+
 // declare dso_local i32 @MPI_Recv(i8*, i32, i32, i32, i32, i32,
 // %struct.MPI_Status*) #1
 
@@ -68,6 +73,7 @@ struct MSGOrderRelaxCheckerPass : public ModulePass {
   void getAnalysisUsage(AnalysisUsage &AU) const {
     AU.addRequired<TargetLibraryInfoWrapperPass>();
     AU.addRequiredTransitive<AAResultsWrapperPass>();
+    AU.addRequired<LoopInfoWrapperPass>();
   }
 
   // Pass starts here
@@ -90,8 +96,10 @@ struct MSGOrderRelaxCheckerPass : public ModulePass {
 
     for (auto &func : M) {
       if (!func.isDeclaration()) {
-        auto *result = &getAnalysis<AAResultsWrapperPass>(func).getAAResults();
-        AA.insert(std::make_pair(&func, result));
+        auto *aa_res = &getAnalysis<AAResultsWrapperPass>(func).getAAResults();
+        AA.insert(std::make_pair(&func, aa_res));
+        auto *li_res = &getAnalysis<LoopInfoWrapperPass>(func).getLoopInfo();
+        LI.insert(std::make_pair(&func, li_res));
       }
     }
 

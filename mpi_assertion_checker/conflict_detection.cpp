@@ -15,6 +15,7 @@
  */
 
 #include "conflict_detection.h"
+#include "analysis_results.h"
 #include "function_coverage.h"
 #include "implementation_specific.h"
 #include "mpi_functions.h"
@@ -22,8 +23,6 @@
 #include "llvm/Analysis/AliasAnalysis.h"
 
 #include "debug.h"
-// todo need some refactoring for this...
-extern std::map<llvm::Function *, llvm::AliasAnalysis *> AA;
 
 using namespace llvm;
 
