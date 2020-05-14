@@ -6,7 +6,7 @@
 #define MSG_TAG 123
 #define N 1000
 
-// no dependency, this in nondeterministic according to the current dtandard
+// no dependency, this in nondeterministic according to the current standard
 // anyway
 
 // process 0 gatheres some data
