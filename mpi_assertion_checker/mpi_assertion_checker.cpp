@@ -33,8 +33,9 @@
 
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/BasicAliasAnalysis.h"
+#include "llvm/Analysis/LoopInfo.h"
+#include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
-#include <llvm/Analysis/LoopInfo.h>
 
 #include <assert.h>
 //#include <mpi.h>
@@ -55,6 +56,7 @@ using namespace llvm;
 // result of the function analysis passes
 std::map<llvm::Function *, llvm::AliasAnalysis *> AA;
 std::map<llvm::Function *, llvm::LoopInfo *> LI;
+std::map<llvm::Function *, llvm::ScalarEvolution *> SE;
 
 // declare dso_local i32 @MPI_Recv(i8*, i32, i32, i32, i32, i32,
 // %struct.MPI_Status*) #1
@@ -74,6 +76,7 @@ struct MSGOrderRelaxCheckerPass : public ModulePass {
     AU.addRequired<TargetLibraryInfoWrapperPass>();
     AU.addRequiredTransitive<AAResultsWrapperPass>();
     AU.addRequired<LoopInfoWrapperPass>();
+    AU.addRequired<ScalarEvolutionWrapperPass>();
   }
 
   // Pass starts here
@@ -100,6 +103,9 @@ struct MSGOrderRelaxCheckerPass : public ModulePass {
         AA.insert(std::make_pair(&func, aa_res));
         auto *li_res = &getAnalysis<LoopInfoWrapperPass>(func).getLoopInfo();
         LI.insert(std::make_pair(&func, li_res));
+        AA.insert(std::make_pair(&func, aa_res));
+        auto *se_res = &getAnalysis<ScalarEvolutionWrapperPass>(func).getSE();
+        SE.insert(std::make_pair(&func, se_res));
       }
     }
 

@@ -1,17 +1,17 @@
 /*
-  Copyright 2020 Tim Jammer
+ Copyright 2020 Tim Jammer
 
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
-       http://www.apache.org/licenses/LICENSE-2.0
+ http://www.apache.org/licenses/LICENSE-2.0
 
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
  */
 
 #include "conflict_detection.h"
@@ -380,9 +380,51 @@ check_mpi_recv_conflicts(Module &M) {
   return result;
 }
 
-// TODO this analysis does not work if a thread gets a pointer to another
+bool can_prove_val_different(Value *val_a, Value *val_b,
+                             bool check_for_loop_iter_difference);
+
+bool can_prove_val_different_in_loop(Value *val_a, Value *val_b) {
+
+  assert((!isa<Constant>(val_a) || !isa<Constant>(val_b)) &&
+         "This function should not be used with two constants");
+  auto *inst_a = dyn_cast<Instruction>(val_a);
+  auto *inst_b = dyn_cast<Instruction>(val_b);
+
+  if (inst_b && !inst_a) {
+    return can_prove_val_different_in_loop(val_b, val_a);
+  }
+
+  assert(inst_a && "This should be an Instruction");
+  assert(inst_a->getType()->isIntegerTy());
+
+  LoopInfo *linfo = LI[inst_a->getFunction()];
+  ScalarEvolution *se = SE[inst_a->getFunction()];
+  assert(linfo != nullptr && se != nullptr);
+  Loop *loop = linfo->getLoopFor(inst_a->getParent());
+
+  if (loop) {
+    auto *sc = se->getSCEV(inst_a);
+
+    // if we can prove that the variable varies predictably with the loop, the
+    // cariable will be different for any two loop iterations otherwise the
+    // variable is only LoopVariant but not predictable
+    if (se->getLoopDisposition(sc, loop) ==
+        ScalarEvolution::LoopDisposition::LoopComputable) {
+      if (val_a == val_b) {
+        assert(se->getLoopDisposition(sc, loop) !=
+               ScalarEvolution::LoopDisposition::LoopInvariant);
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+// TODO this analysis may not work if a thread gets a pointer to another
 // thread's stack, but whoever does that is dumb anyway...
-bool can_prove_val_different(Value *val_a, Value *val_b) {
+bool can_prove_val_different(Value *val_a, Value *val_b,
+                             bool check_for_loop_iter_difference) {
 
   // errs() << "Comparing: \n";
   // val_a->dump();
@@ -400,9 +442,19 @@ bool can_prove_val_different(Value *val_a, Value *val_b) {
         // different constants
         // errs() << "Different\n";
         return true;
+      } else {
+        // proven same
+        return false;
       }
     }
   }
+
+  if (check_for_loop_iter_difference) {
+    if (can_prove_val_different_in_loop(val_a, val_b)) {
+      return true;
+    }
+  }
+
   // could not prove difference
   return false;
 }
@@ -420,16 +472,19 @@ bool are_calls_conflicting(CallBase *orig_call, CallBase *conflict_call,
     return false;
   }
 
+  // if ture: proven to be different if the loop induction variable(s) are
+  // different means a proven difference if false we do not consider a
+  // difference between different loop iterations
+  bool check_for_loop_iter_difference = false;
+
   if (orig_call == conflict_call) {
-    errs() << "Send is conflicting with itself, probably in a loop, if using "
-              "different msg tags on each iteration this is safe nonetheless\n";
-    return true;
+    check_for_loop_iter_difference = true;
   }
 
   // check communicator
   auto *comm1 = get_communicator(orig_call);
   auto *comm2 = get_communicator(conflict_call);
-  if (can_prove_val_different(comm1, comm2)) {
+  if (can_prove_val_different(comm1, comm2, check_for_loop_iter_difference)) {
     return false;
   }
   // otherwise, we have not proven that the communicator is be different
@@ -439,14 +494,14 @@ bool are_calls_conflicting(CallBase *orig_call, CallBase *conflict_call,
   // check src
   auto *src1 = get_src(orig_call, is_send);
   auto *src2 = get_src(conflict_call, is_send);
-  if (can_prove_val_different(src1, src2)) {
+  if (can_prove_val_different(src1, src2, check_for_loop_iter_difference)) {
     return false;
   }
 
   // check tag
   auto *tag1 = get_tag(orig_call, is_send);
   auto *tag2 = get_tag(conflict_call, is_send);
-  if (can_prove_val_different(tag1, tag2)) {
+  if (can_prove_val_different(tag1, tag2, check_for_loop_iter_difference)) {
     return false;
   } // otherwise, we have not proven that the tag is be different
 

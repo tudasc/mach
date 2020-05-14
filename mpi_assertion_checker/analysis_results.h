@@ -18,7 +18,8 @@
 #define MACH_ANALYSIS_RESULTS_H
 
 #include "llvm/Analysis/AliasAnalysis.h"
-#include <llvm/Analysis/LoopInfo.h>
+#include "llvm/Analysis/LoopInfo.h"
+#include "llvm/Analysis/ScalarEvolution.h"
 
 // will be managed by main
 
@@ -26,5 +27,6 @@
 extern std::map<llvm::Function *, llvm::AliasAnalysis *> AA;
 // result of Loop Analysis
 extern std::map<llvm::Function *, llvm::LoopInfo *> LI;
+extern std::map<llvm::Function *, llvm::ScalarEvolution *> SE;
 
 #endif
