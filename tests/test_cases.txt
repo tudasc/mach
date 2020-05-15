@@ -22,6 +22,7 @@ tests/hidden_in_functions/send.c conflict NO_any_tag NO_any_source exact_length
 tests/hidden_in_functions/send_2.c conflict NO_any_tag NO_any_source exact_length
 tests/hidden_in_functions/bar.c no NO_any_tag NO_any_source exact_length
 tests/complex/stencil_allreduce.c conflict NO_any_tag NO_any_source exact_length
+tests/complex/stencil_allreduce_2.c no NO_any_tag NO_any_source exact_length
 tests/complex/stencil_iterations.c conflict NO_any_tag NO_any_source exact_length
 tests/complex/stencil_iterations_correct.c no NO_any_tag NO_any_source exact_length
 tests/complex/gather_results.c no NO_any_tag NO_any_source exact_length
