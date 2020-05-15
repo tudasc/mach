@@ -497,6 +497,12 @@ bool are_calls_conflicting(CallBase *orig_call, CallBase *conflict_call,
   if (can_prove_val_different(src1, src2, check_for_loop_iter_difference)) {
     return false;
   }
+  if (src1 == mpi_implementation_specifics->ANY_SOURCE &&
+      src2 == mpi_implementation_specifics->ANY_SOURCE) {
+    // if any src is used, the order is not defined in the first place (as the
+    // matching is nondeterministically)
+    return false;
+  }
 
   // check tag
   auto *tag1 = get_tag(orig_call, is_send);
@@ -504,6 +510,12 @@ bool are_calls_conflicting(CallBase *orig_call, CallBase *conflict_call,
   if (can_prove_val_different(tag1, tag2, check_for_loop_iter_difference)) {
     return false;
   } // otherwise, we have not proven that the tag is be different
+  if (tag1 == mpi_implementation_specifics->ANY_TAG &&
+      tag2 == mpi_implementation_specifics->ANY_TAG) {
+    // if any tag is used, the order is not defined in the first place (as the
+    // matching is nondeterministically)
+    return false;
+  }
 
   // cannot disprove conflict, have to assume it indeed relays on msg ordering
   return true;
