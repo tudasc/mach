@@ -383,7 +383,50 @@ check_mpi_recv_conflicts(Module &M) {
 bool can_prove_val_different(Value *val_a, Value *val_b,
                              bool check_for_loop_iter_difference);
 
-bool can_prove_val_different_in_loop(Value *val_a, Value *val_b) {
+// if at least one value is inside a loop, this function ties to prove that the
+// two values differ for every iteration of the loop
+// e.g. take in account the loop boundaries
+bool can_prove_val_different_respecting_loops(Value *val_a, Value *val_b) {
+
+  auto *inst_a = dyn_cast<Instruction>(val_a);
+  auto *inst_b = dyn_cast<Instruction>(val_b);
+  if (!inst_a && inst_b) {
+    return can_prove_val_different_respecting_loops(val_b, val_a);
+  } else if (!inst_a && !inst_b) {
+    return false;
+  }
+
+  assert(inst_a);
+
+  LoopInfo *linfo = LI[inst_a->getFunction()];
+  ScalarEvolution *se = SE[inst_a->getFunction()];
+  assert(linfo != nullptr && se != nullptr);
+
+  Debug(errs() << "try to prove difference within loop\n";)
+
+      auto *sc_a = se->getSCEV(val_a);
+  auto *sc_b = se->getSCEV(val_b);
+
+  Debug(sc_a->print(errs()); errs() << "\n"; sc_b->print(errs());
+        errs() << "\n";)
+
+      bool result =
+          se->isKnownPredicate(CmpInst::Predicate::ICMP_NE, sc_a, sc_b);
+  Debug(if (result) { errs() << "Known different\n"; } else {
+    errs() << "could not prove difference\n";
+  })
+
+      return result;
+}
+
+// this function tries to prove if the given values differ for different loop
+// iterations
+bool can_prove_val_different_for_different_loop_iters(Value *val_a,
+                                                      Value *val_b) {
+
+  if (val_a != val_b) {
+    return false;
+  }
 
   assert((!isa<Constant>(val_a) || !isa<Constant>(val_b)) &&
          "This function should not be used with two constants");
@@ -391,7 +434,8 @@ bool can_prove_val_different_in_loop(Value *val_a, Value *val_b) {
   auto *inst_b = dyn_cast<Instruction>(val_b);
 
   if (inst_b && !inst_a) {
-    return can_prove_val_different_in_loop(val_b, val_a);
+    // we assume first param is an insruction (second may be constant)
+    return can_prove_val_different_for_different_loop_iters(val_b, val_a);
   }
 
   assert(inst_a && "This should be an Instruction");
@@ -406,7 +450,7 @@ bool can_prove_val_different_in_loop(Value *val_a, Value *val_b) {
     auto *sc = se->getSCEV(inst_a);
 
     // if we can prove that the variable varies predictably with the loop, the
-    // cariable will be different for any two loop iterations otherwise the
+    // variable will be different for any two loop iterations otherwise the
     // variable is only LoopVariant but not predictable
     if (se->getLoopDisposition(sc, loop) ==
         ScalarEvolution::LoopDisposition::LoopComputable) {
@@ -449,8 +493,12 @@ bool can_prove_val_different(Value *val_a, Value *val_b,
     }
   }
 
+  if (can_prove_val_different_respecting_loops(val_a, val_b)) {
+    return true;
+  }
+
   if (check_for_loop_iter_difference) {
-    if (can_prove_val_different_in_loop(val_a, val_b)) {
+    if (can_prove_val_different_for_different_loop_iters(val_a, val_b)) {
       return true;
     }
   }
