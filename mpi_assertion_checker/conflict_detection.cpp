@@ -402,21 +402,20 @@ bool can_prove_val_different_respecting_loops(Value *val_a, Value *val_b) {
   ScalarEvolution *se = SE[inst_a->getFunction()];
   assert(linfo != nullptr && se != nullptr);
 
-  Debug(errs() << "try to prove difference within loop\n";)
+  // Debug(errs() << "try to prove difference within loop\n";)
 
-      auto *sc_a = se->getSCEV(val_a);
+  auto *sc_a = se->getSCEV(val_a);
   auto *sc_b = se->getSCEV(val_b);
 
-  Debug(sc_a->print(errs()); errs() << "\n"; sc_b->print(errs());
-        errs() << "\n";)
+  // Debug(sc_a->print(errs()); errs() << "\n"; sc_b->print(errs());errs() <<
+  // "\n";)
 
-      bool result =
-          se->isKnownPredicate(CmpInst::Predicate::ICMP_NE, sc_a, sc_b);
-  Debug(if (result) { errs() << "Known different\n"; } else {
-    errs() << "could not prove difference\n";
-  })
+  bool result = se->isKnownPredicate(CmpInst::Predicate::ICMP_NE, sc_a, sc_b);
+  /*Debug(if (result) {errs() << "Known different\n";} else {
+   errs() << "could not prove difference\n";
+   })*/
 
-      return result;
+  return result;
 }
 
 // this function tries to prove if the given values differ for different loop
@@ -454,10 +453,17 @@ bool can_prove_val_different_for_different_loop_iters(Value *val_a,
     // variable is only LoopVariant but not predictable
     if (se->getLoopDisposition(sc, loop) ==
         ScalarEvolution::LoopDisposition::LoopComputable) {
-      if (val_a == val_b) {
+      auto *sc_2 = se->getSCEV(val_b);
+      // if vals are the same and predicable throuout the loop they differ each
+      // iteration
+      if (se->isKnownPredicate(CmpInst::Predicate::ICMP_EQ, sc, sc_2)) {
         assert(se->getLoopDisposition(sc, loop) !=
                ScalarEvolution::LoopDisposition::LoopInvariant);
         return true;
+
+      } else {
+        sc->print(errs());
+        sc_2->print(errs());
       }
     }
   }
@@ -507,12 +513,96 @@ bool can_prove_val_different(Value *val_a, Value *val_b,
   return false;
 }
 
+// true if there is a path from current pos containing block1 and then block2
+// (and all blocks are in the loop) depth first search through the loop
+bool is_path_in_loop_iter(BasicBlock *current_pos, bool encountered1,
+                          Loop *loop, BasicBlock *block1, BasicBlock *block2,
+                          std::set<BasicBlock *> &visited) {
+
+  // end
+  if (current_pos == block2) {
+    return encountered1;
+    // if we first discover block2 and then block 1 this does not count
+  }
+
+  bool has_encountered_1 = encountered1;
+  if (current_pos == block1) {
+    has_encountered_1 = true;
+  }
+
+  visited.insert(current_pos);
+
+  auto *term = current_pos->getTerminator();
+
+  for (unsigned int i = 0; i < term->getNumSuccessors(); ++i) {
+    auto *next = term->getSuccessor(i);
+    if (loop->contains(next) && visited.find(next) == visited.end()) {
+      // do not leave one loop iter
+      if (is_path_in_loop_iter(next, has_encountered_1, loop, block1, block2,
+                               visited)) {
+        // found path
+        return true;
+      }
+    }
+    // else search for other paths
+  }
+
+  // no path found
+  return false;
+}
+
+// TODO does not work for all cases
+
+// true if both calls are in the same loop and there is no loop iterations where
+// both calls are called
+bool are_calls_in_different_loop_iters(CallBase *orig_call,
+                                       CallBase *conflict_call) {
+
+  if (orig_call == conflict_call) {
+    // call conflicting with itself may only be bart of one loop
+    return true;
+  }
+
+  if (orig_call->getFunction() != conflict_call->getFunction()) {
+
+    return false;
+  }
+
+  LoopInfo *linfo = LI[orig_call->getFunction()];
+  assert(linfo != nullptr);
+
+  Loop *loop = linfo->getLoopFor(orig_call->getParent());
+
+  if (!loop) { // not in loop
+    return false;
+  }
+
+  if (loop != linfo->getLoopFor(conflict_call->getParent())) {
+    // if in different loops or one is not in a loop
+    return false;
+  }
+
+  assert(loop != nullptr &&
+         loop == linfo->getLoopFor(conflict_call->getParent()));
+
+  BasicBlock *orig_block = orig_call->getParent();
+  BasicBlock *confilct_block = conflict_call->getParent();
+
+  if (orig_block == confilct_block) {
+    // obvious: true on every loop iteration
+    return true;
+  }
+
+  // depth first search from the loop header to find a path through the
+  // iteration containing both calls
+
+  std::set<BasicBlock *> visited = {}; // start with empty set
+  return is_path_in_loop_iter(loop->getHeader(), false, loop, orig_block,
+                              confilct_block, visited);
+}
+
 bool are_calls_conflicting(CallBase *orig_call, CallBase *conflict_call,
                            bool is_send) {
-
-  Debug(errs() << "\n"; orig_call->dump();
-        errs() << "potential conflict detected: "; conflict_call->dump();
-        errs() << "\n";);
 
   // if one is send and the other a recv: fond a match which means no conflict
   if ((is_send && is_recv_function(conflict_call->getCalledFunction())) ||
@@ -520,12 +610,12 @@ bool are_calls_conflicting(CallBase *orig_call, CallBase *conflict_call,
     return false;
   }
 
-  // if ture: proven to be different if the loop induction variable(s) are
+  // if true: proven to be different if the loop induction variable(s) are
   // different means a proven difference if false we do not consider a
   // difference between different loop iterations
   bool check_for_loop_iter_difference = false;
 
-  if (orig_call == conflict_call) {
+  if (are_calls_in_different_loop_iters(orig_call, conflict_call)) {
     check_for_loop_iter_difference = true;
   }
 
@@ -566,6 +656,11 @@ bool are_calls_conflicting(CallBase *orig_call, CallBase *conflict_call,
   }
 
   // cannot disprove conflict, have to assume it indeed relays on msg ordering
+  Debug(errs() << "Conflict detected:\n"; orig_call->dump(); errs() << "\n ";
+        conflict_call->dump();
+        errs() << "\n in different iters? " << check_for_loop_iter_difference
+               << " \n";);
+
   return true;
 }
 
