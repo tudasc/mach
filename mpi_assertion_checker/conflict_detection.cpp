@@ -21,6 +21,7 @@
 #include "mpi_functions.h"
 
 #include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/IR/CFG.h"
 
 #include "debug.h"
 
@@ -36,6 +37,32 @@ check_call_for_conflict(llvm::CallBase *mpi_call, bool is_send);
 
 bool are_calls_conflicting(llvm::CallBase *orig_call,
                            llvm::CallBase *conflict_call, bool is_send);
+
+// gets the guarding comparision for this block if any
+std::pair<Value *, bool> get_guarding_compare(llvm::CallBase *call) {
+  auto *bb = call->getParent();
+
+  if (pred_size(bb) == 1) // otherwise no single branch guard
+  {
+    for (BasicBlock *pred : predecessors(bb)) {
+      if (auto *term = dyn_cast<BranchInst>(pred->getTerminator())) {
+        if (term->isConditional()) {
+
+          Value *guard = term->getCondition();
+          bool way_to_take = false; // assume our block is the false label
+          if (term->getSuccessor(0) == bb) {
+            way_to_take = true; // unless proven otherwise
+          }
+
+          return std::make_pair(guard, way_to_take);
+        }
+      }
+    }
+  }
+
+  // nothing found
+  return std::make_pair(nullptr, false);
+}
 
 // if scope ending.empty: normal send without a scope
 std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>>
@@ -57,12 +84,15 @@ check_call_for_conflict(CallBase *mpi_call,
   Instruction *next_inst = current_inst->getNextNode();
 
   // what this function does:
-  // follow all possible code paths until
+  // follow all possible* code paths until
   // A a synchronization occurs
   // B a conflicting call is detected
   // C end of program (mpi finalize)
   // for A the analysis will only stop if the scope of an I... call has already
   // ended
+
+  //* if call is within an if, we only folow the path where condition is the
+  //same as in our path
 
   // errs()<< "Start analyzing Codepath\n";
   // mpi_call->dump();
@@ -79,6 +109,10 @@ check_call_for_conflict(CallBase *mpi_call,
   std::vector<CallBase *> i_barrier_scope_end;
 
   bool scope_ended = scope_endings.empty();
+
+  auto guard_pair = get_guarding_compare(mpi_call);
+  Value *guard = guard_pair.first;
+  bool way_to_take = guard_pair.second;
 
   while (next_inst != nullptr) {
     current_inst = next_inst;
@@ -208,8 +242,8 @@ check_call_for_conflict(CallBase *mpi_call,
       } else { // no mpi function
 
         if (function_metadata->may_conflict(call->getCalledFunction())) {
-          Debug(errs() << "Call To " << call->getCalledFunction()->getName()
-                       << "May conflict\n";);
+          // Debug(errs() << "Call To " << call->getCalledFunction()->getName()
+          //             << "May conflict\n";);
           conflicts.push_back(std::make_pair(mpi_call, call));
         } else if (function_metadata->will_sync(call->getCalledFunction())) {
           // sync point detected
@@ -236,12 +270,41 @@ check_call_for_conflict(CallBase *mpi_call,
         nullptr) // if not discovered to stop analyzing this code path
     {
       if (current_inst->isTerminator()) {
-        for (unsigned int i = 0; i < current_inst->getNumSuccessors(); ++i) {
-          auto *next_block = current_inst->getSuccessor(i);
+        if (auto *br = dyn_cast<BranchInst>(current_inst)) {
+          if (br->isConditional() && br->getCondition() == guard) {
+            // only add the corresponding successor
 
-          if (already_checked.find(next_block) == already_checked.end()) {
-            to_check.insert(std::make_tuple(next_block->getFirstNonPHI(),
-                                            scope_ended, in_Ibarrier));
+            auto *next_block = current_inst->getSuccessor(1);
+            if (way_to_take) {
+              next_block = current_inst->getSuccessor(0);
+            }
+
+            if (already_checked.find(next_block) == already_checked.end()) {
+              to_check.insert(std::make_tuple(next_block->getFirstNonPHI(),
+                                              scope_ended, in_Ibarrier));
+            }
+
+          } else {
+            // add all sucessors
+            for (unsigned int i = 0; i < current_inst->getNumSuccessors();
+                 ++i) {
+              auto *next_block = current_inst->getSuccessor(i);
+
+              if (already_checked.find(next_block) == already_checked.end()) {
+                to_check.insert(std::make_tuple(next_block->getFirstNonPHI(),
+                                                scope_ended, in_Ibarrier));
+              }
+            }
+          }
+        } else { // e.g. some switch
+                 // add all sucessors
+          for (unsigned int i = 0; i < current_inst->getNumSuccessors(); ++i) {
+            auto *next_block = current_inst->getSuccessor(i);
+
+            if (already_checked.find(next_block) == already_checked.end()) {
+              to_check.insert(std::make_tuple(next_block->getFirstNonPHI(),
+                                              scope_ended, in_Ibarrier));
+            }
           }
         }
         if (isa<ReturnInst>(current_inst)) {
@@ -445,8 +508,14 @@ bool can_prove_val_different_for_different_loop_iters(Value *val_a,
   assert(linfo != nullptr && se != nullptr);
   Loop *loop = linfo->getLoopFor(inst_a->getParent());
 
+  auto *sc = se->getSCEV(inst_a);
+
+  sc->print(errs());
+
   if (loop) {
     auto *sc = se->getSCEV(inst_a);
+
+    sc->print(errs());
 
     // if we can prove that the variable varies predictably with the loop, the
     // variable will be different for any two loop iterations otherwise the
@@ -454,6 +523,7 @@ bool can_prove_val_different_for_different_loop_iters(Value *val_a,
     if (se->getLoopDisposition(sc, loop) ==
         ScalarEvolution::LoopDisposition::LoopComputable) {
       auto *sc_2 = se->getSCEV(val_b);
+      sc_2->print(errs());
       // if vals are the same and predicable throuout the loop they differ each
       // iteration
       if (se->isKnownPredicate(CmpInst::Predicate::ICMP_EQ, sc, sc_2)) {
