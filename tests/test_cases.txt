@@ -42,3 +42,5 @@ tests/more_msg/waitall_bar_3.c conflict NO_any_tag NO_any_source exact_length
 tests/one_message_not_matching_length.c no NO_any_tag NO_any_source NO_exact_length
 tests/more_msg/not_matching_length.c conflict any_tag NO_any_source NO_exact_length
 tests/complex/gather_bcast.c no NO_any_tag NO_any_source exact_length
+tests/complex/heated-plate_while.cpp no NO_any_tag NO_any_source exact_length
+tests/complex/heated-plate_while_2.cpp no NO_any_tag NO_any_source exact_length
