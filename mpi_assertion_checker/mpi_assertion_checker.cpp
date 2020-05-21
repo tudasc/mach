@@ -85,6 +85,8 @@ struct MSGOrderRelaxCheckerPass : public ModulePass {
    }
    */
 
+  StringRef getPassName() const { return "MPI Assertion Analysis"; }
+
   // Pass starts here
   virtual bool runOnModule(Module &M) {
 
