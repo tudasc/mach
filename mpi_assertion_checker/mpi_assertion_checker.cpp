@@ -109,9 +109,30 @@ struct MSGOrderRelaxCheckerPass : public ModulePass {
     std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>> recv_conflicts =
         check_mpi_recv_conflicts(M);
 
-    if (!send_conflicts.empty() || !recv_conflicts.empty())
+    if (!send_conflicts.empty() || !recv_conflicts.empty()) {
+      /*
+          if (!send_conflicts.empty()) {
+                  errs() << "send conflicts\n";
+                  for (auto conflict : send_conflicts) {
+                                                          conflict.first->dump();
+                                                          conflict.second->dump();
+                                                          errs()
+<< "\n";
+                                                  }
+          }
+          if (!recv_conflicts.empty()) {
+                  errs() << "recv conflicts\n";
+
+                  for (auto conflict : recv_conflicts) {
+                          conflict.first->dump();
+                          conflict.second->dump();
+                          errs() << "\n";
+                  }
+          }
+          */
+
       errs() << "Message race conflicts detected\n";
-    else {
+    } else {
       errs() << "No conflicts detected, try to use mpi_assert_allow_overtaking "
                 "for better performance\n";
     }
@@ -140,7 +161,7 @@ struct MSGOrderRelaxCheckerPass : public ModulePass {
 
     return false;
   }
-};
+}; // class MSGOrderRelaxCheckerPass
 } // namespace
 
 char MSGOrderRelaxCheckerPass::ID = 42;
