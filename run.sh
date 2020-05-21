@@ -6,6 +6,8 @@
 # using mpich:
 if [ ${1: -2} == ".c" ]; then
 $MPICC -cc=clang -O2 -fopenmp -Xclang -load -Xclang build/mpi_assertion_checker/libmpi_assertion_checker.so  $1
+#$MPICC -cc=clang -O2 -fopenmp -Xclang -load -Xclang build/mpi_assertion_checker/libmpi_assertion_checker.so  -ftime-report $1
+#$MPICC -cc=clang -O2 -fopenmp $1
 elif [ ${1: -4} == ".cpp" ]; then
 $MPICXX -cxx=clang++ -O2  -fopenmp -Xclang -load -Xclang build/mpi_assertion_checker/libmpi_assertion_checker.so  $1
 else
