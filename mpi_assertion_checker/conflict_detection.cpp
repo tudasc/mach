@@ -15,7 +15,6 @@
  */
 
 #include "conflict_detection.h"
-#include "analysis_results.h"
 #include "function_coverage.h"
 #include "implementation_specific.h"
 #include "mpi_functions.h"
@@ -23,6 +22,7 @@
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/IR/CFG.h"
 
+#include "analysis_results.h"
 #include "debug.h"
 
 using namespace llvm;
@@ -92,7 +92,7 @@ check_call_for_conflict(CallBase *mpi_call,
   // ended
 
   //* if call is within an if, we only folow the path where condition is the
-  //same as in our path
+  // same as in our path
 
   // errs()<< "Start analyzing Codepath\n";
   // mpi_call->dump();
@@ -461,8 +461,8 @@ bool can_prove_val_different_respecting_loops(Value *val_a, Value *val_b) {
 
   assert(inst_a);
 
-  LoopInfo *linfo = LI[inst_a->getFunction()];
-  ScalarEvolution *se = SE[inst_a->getFunction()];
+  LoopInfo *linfo = analysis_results->getLoopInfo(inst_a->getFunction());
+  ScalarEvolution *se = analysis_results->getSE(inst_a->getFunction());
   assert(linfo != nullptr && se != nullptr);
 
   // Debug(errs() << "try to prove difference within loop\n";)
@@ -503,19 +503,13 @@ bool can_prove_val_different_for_different_loop_iters(Value *val_a,
   assert(inst_a && "This should be an Instruction");
   assert(inst_a->getType()->isIntegerTy());
 
-  LoopInfo *linfo = LI[inst_a->getFunction()];
-  ScalarEvolution *se = SE[inst_a->getFunction()];
+  LoopInfo *linfo = analysis_results->getLoopInfo(inst_a->getFunction());
+  ScalarEvolution *se = analysis_results->getSE(inst_a->getFunction());
   assert(linfo != nullptr && se != nullptr);
   Loop *loop = linfo->getLoopFor(inst_a->getParent());
 
-  auto *sc = se->getSCEV(inst_a);
-
-  sc->print(errs());
-
   if (loop) {
     auto *sc = se->getSCEV(inst_a);
-
-    sc->print(errs());
 
     // if we can prove that the variable varies predictably with the loop, the
     // variable will be different for any two loop iterations otherwise the
@@ -523,7 +517,6 @@ bool can_prove_val_different_for_different_loop_iters(Value *val_a,
     if (se->getLoopDisposition(sc, loop) ==
         ScalarEvolution::LoopDisposition::LoopComputable) {
       auto *sc_2 = se->getSCEV(val_b);
-      sc_2->print(errs());
       // if vals are the same and predicable throuout the loop they differ each
       // iteration
       if (se->isKnownPredicate(CmpInst::Predicate::ICMP_EQ, sc, sc_2)) {
@@ -638,7 +631,7 @@ bool are_calls_in_different_loop_iters(CallBase *orig_call,
     return false;
   }
 
-  LoopInfo *linfo = LI[orig_call->getFunction()];
+  LoopInfo *linfo = analysis_results->getLoopInfo(orig_call->getFunction());
   assert(linfo != nullptr);
 
   Loop *loop = linfo->getLoopFor(orig_call->getParent());

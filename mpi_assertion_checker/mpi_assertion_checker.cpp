@@ -53,13 +53,10 @@
 
 using namespace llvm;
 
-// result of the function analysis passes
-std::map<llvm::Function *, llvm::AliasAnalysis *> AA;
-std::map<llvm::Function *, llvm::LoopInfo *> LI;
-std::map<llvm::Function *, llvm::ScalarEvolution *> SE;
-
 // declare dso_local i32 @MPI_Recv(i8*, i32, i32, i32, i32, i32,
 // %struct.MPI_Status*) #1
+
+RequiredAnalysisResults *analysis_results;
 
 struct mpi_functions *mpi_func;
 struct ImplementationSpecifics *mpi_implementation_specifics;
@@ -72,12 +69,21 @@ struct MSGOrderRelaxCheckerPass : public ModulePass {
   MSGOrderRelaxCheckerPass() : ModulePass(ID) {}
 
   // register that we require this analysis
+
   void getAnalysisUsage(AnalysisUsage &AU) const {
     AU.addRequired<TargetLibraryInfoWrapperPass>();
     AU.addRequiredTransitive<AAResultsWrapperPass>();
     AU.addRequired<LoopInfoWrapperPass>();
     AU.addRequired<ScalarEvolutionWrapperPass>();
   }
+  /*
+   void getAnalysisUsage(AnalysisUsage &AU) const {
+   AU.addRequiredTransitive<TargetLibraryInfoWrapperPass>();
+   AU.addRequiredTransitive<AAResultsWrapperPass>();
+   AU.addRequiredTransitive<LoopInfoWrapperPass>();
+   AU.addRequiredTransitive<ScalarEvolutionWrapperPass>();
+   }
+   */
 
   // Pass starts here
   virtual bool runOnModule(Module &M) {
@@ -91,25 +97,9 @@ struct MSGOrderRelaxCheckerPass : public ModulePass {
       return false;
     }
 
-    // give it any function, the Function is not used at all
-    // dont know why the api has changed here...
-    TargetLibraryInfo *TLI =
-        &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(
-            *mpi_func->mpi_init);
+    analysis_results = new RequiredAnalysisResults(this);
 
-    for (auto &func : M) {
-      if (!func.isDeclaration()) {
-        auto *aa_res = &getAnalysis<AAResultsWrapperPass>(func).getAAResults();
-        AA.insert(std::make_pair(&func, aa_res));
-        auto *li_res = &getAnalysis<LoopInfoWrapperPass>(func).getLoopInfo();
-        LI.insert(std::make_pair(&func, li_res));
-        AA.insert(std::make_pair(&func, aa_res));
-        auto *se_res = &getAnalysis<ScalarEvolutionWrapperPass>(func).getSE();
-        SE.insert(std::make_pair(&func, se_res));
-      }
-    }
-
-    function_metadata = new FunctionMetadata(TLI, M);
+    function_metadata = new FunctionMetadata(analysis_results->getTLI(), M);
 
     mpi_implementation_specifics = new ImplementationSpecifics(M);
 
@@ -144,6 +134,7 @@ struct MSGOrderRelaxCheckerPass : public ModulePass {
     errs() << "Successfully executed the pass\n\n";
     delete mpi_func;
     delete mpi_implementation_specifics;
+    delete analysis_results;
 
     delete function_metadata;
 
