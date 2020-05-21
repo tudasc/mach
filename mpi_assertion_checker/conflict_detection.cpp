@@ -242,8 +242,8 @@ check_call_for_conflict(CallBase *mpi_call,
       } else { // no mpi function
 
         if (function_metadata->may_conflict(call->getCalledFunction())) {
-          // Debug(errs() << "Call To " << call->getCalledFunction()->getName()
-          //             << "May conflict\n";);
+          Debug(errs() << "Call To " << call->getCalledFunction()->getName()
+                       << "May conflict\n";);
           conflicts.push_back(std::make_pair(mpi_call, call));
         } else if (function_metadata->will_sync(call->getCalledFunction())) {
           // sync point detected

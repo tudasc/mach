@@ -76,8 +76,9 @@ FunctionMetadata::FunctionMetadata(const llvm::TargetLibraryInfo *TLI,
         }
       }
 
-      Debug(errs() << F.getName() << ": has_mpi: " << has_mpi << " will_sync: "
-                   << has_sync << " may_conflict" << may_conflict << "\n";);
+      Debug(errs() << F.getName() << ":unknown: " << unknown
+                   << " has_mpi: " << has_mpi << " will_sync: " << has_sync
+                   << " may_conflict" << may_conflict << "\n";);
       auto info = std::make_tuple(unknown, has_mpi, has_sync, may_conflict);
       const auto status =
           this->function_metadata.insert(std::make_pair(&F, info));
