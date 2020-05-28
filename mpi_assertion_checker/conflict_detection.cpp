@@ -15,6 +15,7 @@
  */
 
 #include "conflict_detection.h"
+#include "analysis_results.h"
 #include "function_coverage.h"
 #include "implementation_specific.h"
 #include "mpi_functions.h"
@@ -22,7 +23,6 @@
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/IR/CFG.h"
 
-#include "analysis_results.h"
 #include "debug.h"
 
 using namespace llvm;
@@ -719,11 +719,6 @@ bool are_calls_conflicting(CallBase *orig_call, CallBase *conflict_call,
   }
 
   // cannot disprove conflict, have to assume it indeed relays on msg ordering
-  Debug(errs() << "Conflict detected:\n"; orig_call->dump(); errs() << "\n ";
-        conflict_call->dump();
-        errs() << "\n in different iters? " << check_for_loop_iter_difference
-               << " \n";);
-
   return true;
 }
 
