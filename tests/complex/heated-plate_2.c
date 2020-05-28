@@ -176,7 +176,7 @@ int main(int argc, char *argv[])
   size = (M - 1) / numtasks;
   rest = (M - 1) % numtasks;
   //-1, da die Letzte Zeile zu keinem Prozess gehört (die 0te Zeile gehört auch
-  //keinem, wird aber nicht mitgezählt)
+  // keinem, wird aber nicht mitgezählt)
   from = rank * size + rest + 1;
   //+1 bei, da die erste Zeile zu keinem Prozess gehört
 
