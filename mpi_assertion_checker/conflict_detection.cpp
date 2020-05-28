@@ -1,29 +1,29 @@
 /*
-  Copyright 2020 Tim Jammer
+ Copyright 2020 Tim Jammer
 
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
-       http://www.apache.org/licenses/LICENSE-2.0
+ http://www.apache.org/licenses/LICENSE-2.0
 
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
  */
 
 #include "conflict_detection.h"
+#include "analysis_results.h"
 #include "function_coverage.h"
 #include "implementation_specific.h"
 #include "mpi_functions.h"
 
 #include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/IR/CFG.h"
 
 #include "debug.h"
-// todo need some refactoring for this...
-extern std::map<llvm::Function *, llvm::AliasAnalysis *> AA;
 
 using namespace llvm;
 
@@ -37,6 +37,32 @@ check_call_for_conflict(llvm::CallBase *mpi_call, bool is_send);
 
 bool are_calls_conflicting(llvm::CallBase *orig_call,
                            llvm::CallBase *conflict_call, bool is_send);
+
+// gets the guarding comparision for this block if any
+std::pair<Value *, bool> get_guarding_compare(llvm::CallBase *call) {
+  auto *bb = call->getParent();
+
+  if (pred_size(bb) == 1) // otherwise no single branch guard
+  {
+    for (BasicBlock *pred : predecessors(bb)) {
+      if (auto *term = dyn_cast<BranchInst>(pred->getTerminator())) {
+        if (term->isConditional()) {
+
+          Value *guard = term->getCondition();
+          bool way_to_take = false; // assume our block is the false label
+          if (term->getSuccessor(0) == bb) {
+            way_to_take = true; // unless proven otherwise
+          }
+
+          return std::make_pair(guard, way_to_take);
+        }
+      }
+    }
+  }
+
+  // nothing found
+  return std::make_pair(nullptr, false);
+}
 
 // if scope ending.empty: normal send without a scope
 std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>>
@@ -58,12 +84,15 @@ check_call_for_conflict(CallBase *mpi_call,
   Instruction *next_inst = current_inst->getNextNode();
 
   // what this function does:
-  // follow all possible code paths until
+  // follow all possible* code paths until
   // A a synchronization occurs
   // B a conflicting call is detected
   // C end of program (mpi finalize)
   // for A the analysis will only stop if the scope of an I... call has already
   // ended
+
+  //* if call is within an if, we only folow the path where condition is the
+  // same as in our path
 
   // errs()<< "Start analyzing Codepath\n";
   // mpi_call->dump();
@@ -80,6 +109,10 @@ check_call_for_conflict(CallBase *mpi_call,
   std::vector<CallBase *> i_barrier_scope_end;
 
   bool scope_ended = scope_endings.empty();
+
+  auto guard_pair = get_guarding_compare(mpi_call);
+  Value *guard = guard_pair.first;
+  bool way_to_take = guard_pair.second;
 
   while (next_inst != nullptr) {
     current_inst = next_inst;
@@ -237,12 +270,41 @@ check_call_for_conflict(CallBase *mpi_call,
         nullptr) // if not discovered to stop analyzing this code path
     {
       if (current_inst->isTerminator()) {
-        for (unsigned int i = 0; i < current_inst->getNumSuccessors(); ++i) {
-          auto *next_block = current_inst->getSuccessor(i);
+        if (auto *br = dyn_cast<BranchInst>(current_inst)) {
+          if (br->isConditional() && br->getCondition() == guard) {
+            // only add the corresponding successor
 
-          if (already_checked.find(next_block) == already_checked.end()) {
-            to_check.insert(std::make_tuple(next_block->getFirstNonPHI(),
-                                            scope_ended, in_Ibarrier));
+            auto *next_block = current_inst->getSuccessor(1);
+            if (way_to_take) {
+              next_block = current_inst->getSuccessor(0);
+            }
+
+            if (already_checked.find(next_block) == already_checked.end()) {
+              to_check.insert(std::make_tuple(next_block->getFirstNonPHI(),
+                                              scope_ended, in_Ibarrier));
+            }
+
+          } else {
+            // add all sucessors
+            for (unsigned int i = 0; i < current_inst->getNumSuccessors();
+                 ++i) {
+              auto *next_block = current_inst->getSuccessor(i);
+
+              if (already_checked.find(next_block) == already_checked.end()) {
+                to_check.insert(std::make_tuple(next_block->getFirstNonPHI(),
+                                                scope_ended, in_Ibarrier));
+              }
+            }
+          }
+        } else { // e.g. some switch
+                 // add all sucessors
+          for (unsigned int i = 0; i < current_inst->getNumSuccessors(); ++i) {
+            auto *next_block = current_inst->getSuccessor(i);
+
+            if (already_checked.find(next_block) == already_checked.end()) {
+              to_check.insert(std::make_tuple(next_block->getFirstNonPHI(),
+                                              scope_ended, in_Ibarrier));
+            }
           }
         }
         if (isa<ReturnInst>(current_inst)) {
@@ -381,9 +443,101 @@ check_mpi_recv_conflicts(Module &M) {
   return result;
 }
 
-// TODO this analysis does not work if a thread gets a pointer to another
+bool can_prove_val_different(Value *val_a, Value *val_b,
+                             bool check_for_loop_iter_difference);
+
+// if at least one value is inside a loop, this function ties to prove that the
+// two values differ for every iteration of the loop
+// e.g. take in account the loop boundaries
+bool can_prove_val_different_respecting_loops(Value *val_a, Value *val_b) {
+
+  auto *inst_a = dyn_cast<Instruction>(val_a);
+  auto *inst_b = dyn_cast<Instruction>(val_b);
+  if (!inst_a && inst_b) {
+    return can_prove_val_different_respecting_loops(val_b, val_a);
+  } else if (!inst_a && !inst_b) {
+    return false;
+  }
+
+  assert(inst_a);
+
+  LoopInfo *linfo = analysis_results->getLoopInfo(inst_a->getFunction());
+  ScalarEvolution *se = analysis_results->getSE(inst_a->getFunction());
+  assert(linfo != nullptr && se != nullptr);
+
+  // Debug(errs() << "try to prove difference within loop\n";)
+
+  auto *sc_a = se->getSCEV(val_a);
+  auto *sc_b = se->getSCEV(val_b);
+
+  // Debug(sc_a->print(errs()); errs() << "\n"; sc_b->print(errs());errs() <<
+  // "\n";)
+
+  bool result = se->isKnownPredicate(CmpInst::Predicate::ICMP_NE, sc_a, sc_b);
+  /*Debug(if (result) {errs() << "Known different\n";} else {
+   errs() << "could not prove difference\n";
+   })*/
+
+  return result;
+}
+
+// this function tries to prove if the given values differ for different loop
+// iterations
+bool can_prove_val_different_for_different_loop_iters(Value *val_a,
+                                                      Value *val_b) {
+
+  if (val_a != val_b) {
+    return false;
+  }
+
+  assert((!isa<Constant>(val_a) || !isa<Constant>(val_b)) &&
+         "This function should not be used with two constants");
+  auto *inst_a = dyn_cast<Instruction>(val_a);
+  auto *inst_b = dyn_cast<Instruction>(val_b);
+
+  if (inst_b && !inst_a) {
+    // we assume first param is an insruction (second may be constant)
+    return can_prove_val_different_for_different_loop_iters(val_b, val_a);
+  }
+
+  assert(inst_a && "This should be an Instruction");
+  assert(inst_a->getType()->isIntegerTy());
+
+  LoopInfo *linfo = analysis_results->getLoopInfo(inst_a->getFunction());
+  ScalarEvolution *se = analysis_results->getSE(inst_a->getFunction());
+  assert(linfo != nullptr && se != nullptr);
+  Loop *loop = linfo->getLoopFor(inst_a->getParent());
+
+  if (loop) {
+    auto *sc = se->getSCEV(inst_a);
+
+    // if we can prove that the variable varies predictably with the loop, the
+    // variable will be different for any two loop iterations otherwise the
+    // variable is only LoopVariant but not predictable
+    if (se->getLoopDisposition(sc, loop) ==
+        ScalarEvolution::LoopDisposition::LoopComputable) {
+      auto *sc_2 = se->getSCEV(val_b);
+      // if vals are the same and predicable throuout the loop they differ each
+      // iteration
+      if (se->isKnownPredicate(CmpInst::Predicate::ICMP_EQ, sc, sc_2)) {
+        assert(se->getLoopDisposition(sc, loop) !=
+               ScalarEvolution::LoopDisposition::LoopInvariant);
+        return true;
+
+      } else {
+        sc->print(errs());
+        sc_2->print(errs());
+      }
+    }
+  }
+
+  return false;
+}
+
+// TODO this analysis may not work if a thread gets a pointer to another
 // thread's stack, but whoever does that is dumb anyway...
-bool can_prove_val_different(Value *val_a, Value *val_b) {
+bool can_prove_val_different(Value *val_a, Value *val_b,
+                             bool check_for_loop_iter_difference) {
 
   // errs() << "Comparing: \n";
   // val_a->dump();
@@ -401,19 +555,117 @@ bool can_prove_val_different(Value *val_a, Value *val_b) {
         // different constants
         // errs() << "Different\n";
         return true;
+      } else {
+        // proven same
+        return false;
       }
     }
   }
+
+  if (can_prove_val_different_respecting_loops(val_a, val_b)) {
+    return true;
+  }
+
+  if (check_for_loop_iter_difference) {
+    if (can_prove_val_different_for_different_loop_iters(val_a, val_b)) {
+      return true;
+    }
+  }
+
   // could not prove difference
   return false;
 }
 
+// true if there is a path from current pos containing block1 and then block2
+// (and all blocks are in the loop) depth first search through the loop
+bool is_path_in_loop_iter(BasicBlock *current_pos, bool encountered1,
+                          Loop *loop, BasicBlock *block1, BasicBlock *block2,
+                          std::set<BasicBlock *> &visited) {
+
+  // end
+  if (current_pos == block2) {
+    return encountered1;
+    // if we first discover block2 and then block 1 this does not count
+  }
+
+  bool has_encountered_1 = encountered1;
+  if (current_pos == block1) {
+    has_encountered_1 = true;
+  }
+
+  visited.insert(current_pos);
+
+  auto *term = current_pos->getTerminator();
+
+  for (unsigned int i = 0; i < term->getNumSuccessors(); ++i) {
+    auto *next = term->getSuccessor(i);
+    if (loop->contains(next) && visited.find(next) == visited.end()) {
+      // do not leave one loop iter
+      if (is_path_in_loop_iter(next, has_encountered_1, loop, block1, block2,
+                               visited)) {
+        // found path
+        return true;
+      }
+    }
+    // else search for other paths
+  }
+
+  // no path found
+  return false;
+}
+
+// TODO does not work for all cases
+
+// true if both calls are in the same loop and there is no loop iterations where
+// both calls are called
+bool are_calls_in_different_loop_iters(CallBase *orig_call,
+                                       CallBase *conflict_call) {
+
+  if (orig_call == conflict_call) {
+    // call conflicting with itself may only be bart of one loop
+    return true;
+  }
+
+  if (orig_call->getFunction() != conflict_call->getFunction()) {
+
+    return false;
+  }
+
+  LoopInfo *linfo = analysis_results->getLoopInfo(orig_call->getFunction());
+  assert(linfo != nullptr);
+
+  Loop *loop = linfo->getLoopFor(orig_call->getParent());
+
+  if (!loop) { // not in loop
+    return false;
+  }
+
+  if (loop != linfo->getLoopFor(conflict_call->getParent())) {
+    // if in different loops or one is not in a loop
+    return false;
+  }
+
+  assert(loop != nullptr &&
+         loop == linfo->getLoopFor(conflict_call->getParent()));
+
+  BasicBlock *orig_block = orig_call->getParent();
+  BasicBlock *confilct_block = conflict_call->getParent();
+
+  if (orig_block == confilct_block) {
+    // obvious: true on every loop iteration
+    return true;
+  }
+
+  // depth first search from the loop header to find a path through the
+  // iteration containing both calls
+
+  std::set<BasicBlock *> visited = {}; // start with empty set
+  return !is_path_in_loop_iter(loop->getHeader(), false, loop, orig_block,
+                               confilct_block, visited);
+}
+
 bool are_calls_conflicting(CallBase *orig_call, CallBase *conflict_call,
                            bool is_send) {
-
-  Debug(errs() << "\n"; orig_call->dump();
-        errs() << "potential conflict detected: "; conflict_call->dump();
-        errs() << "\n";);
 
   // if one is send and the other a recv: fond a match which means no conflict
   if ((is_send && is_recv_function(conflict_call->getCalledFunction())) ||
@@ -421,16 +673,19 @@ bool are_calls_conflicting(CallBase *orig_call, CallBase *conflict_call,
     return false;
   }
 
-  if (orig_call == conflict_call) {
-    errs() << "Send is conflicting with itself, probably in a loop, if using "
-              "different msg tags on each iteration this is safe nonetheless\n";
-    return true;
+  // if true: proven to be different if the loop induction variable(s) are
+  // different means a proven difference if false we do not consider a
+  // difference between different loop iterations
+  bool check_for_loop_iter_difference = false;
+
+  if (are_calls_in_different_loop_iters(orig_call, conflict_call)) {
+    check_for_loop_iter_difference = true;
   }
 
   // check communicator
   auto *comm1 = get_communicator(orig_call);
   auto *comm2 = get_communicator(conflict_call);
-  if (can_prove_val_different(comm1, comm2)) {
+  if (can_prove_val_different(comm1, comm2, check_for_loop_iter_difference)) {
     return false;
   }
   // otherwise, we have not proven that the communicator is be different
@@ -440,16 +695,28 @@ bool are_calls_conflicting(CallBase *orig_call, CallBase *conflict_call,
   // check src
   auto *src1 = get_src(orig_call, is_send);
   auto *src2 = get_src(conflict_call, is_send);
-  if (can_prove_val_different(src1, src2)) {
+  if (can_prove_val_different(src1, src2, check_for_loop_iter_difference)) {
+    return false;
+  }
+  if (src1 == mpi_implementation_specifics->ANY_SOURCE &&
+      src2 == mpi_implementation_specifics->ANY_SOURCE) {
+    // if any src is used, the order is not defined in the first place (as the
+    // matching is nondeterministically)
     return false;
   }
 
   // check tag
   auto *tag1 = get_tag(orig_call, is_send);
   auto *tag2 = get_tag(conflict_call, is_send);
-  if (can_prove_val_different(tag1, tag2)) {
+  if (can_prove_val_different(tag1, tag2, check_for_loop_iter_difference)) {
     return false;
   } // otherwise, we have not proven that the tag is be different
+  if (tag1 == mpi_implementation_specifics->ANY_TAG &&
+      tag2 == mpi_implementation_specifics->ANY_TAG) {
+    // if any tag is used, the order is not defined in the first place (as the
+    // matching is nondeterministically)
+    return false;
+  }
 
   // cannot disprove conflict, have to assume it indeed relays on msg ordering
   return true;

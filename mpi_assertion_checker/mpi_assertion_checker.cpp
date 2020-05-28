@@ -1,17 +1,17 @@
 /*
-  Copyright 2020 Tim Jammer
+ Copyright 2020 Tim Jammer
 
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
-       http://www.apache.org/licenses/LICENSE-2.0
+ http://www.apache.org/licenses/LICENSE-2.0
 
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
  */
 
 #include "llvm/ADT/APInt.h"
@@ -33,6 +33,8 @@
 
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/BasicAliasAnalysis.h"
+#include "llvm/Analysis/LoopInfo.h"
+#include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 
 #include <assert.h>
@@ -42,6 +44,7 @@
 #include <vector>
 
 #include "additional_assertions.h"
+#include "analysis_results.h"
 #include "conflict_detection.h"
 #include "debug.h"
 #include "function_coverage.h"
@@ -50,9 +53,10 @@
 
 using namespace llvm;
 
-std::map<llvm::Function *, llvm::AliasAnalysis *> AA;
 // declare dso_local i32 @MPI_Recv(i8*, i32, i32, i32, i32, i32,
 // %struct.MPI_Status*) #1
+
+RequiredAnalysisResults *analysis_results;
 
 struct mpi_functions *mpi_func;
 struct ImplementationSpecifics *mpi_implementation_specifics;
@@ -65,10 +69,23 @@ struct MSGOrderRelaxCheckerPass : public ModulePass {
   MSGOrderRelaxCheckerPass() : ModulePass(ID) {}
 
   // register that we require this analysis
+
   void getAnalysisUsage(AnalysisUsage &AU) const {
     AU.addRequired<TargetLibraryInfoWrapperPass>();
     AU.addRequiredTransitive<AAResultsWrapperPass>();
+    AU.addRequired<LoopInfoWrapperPass>();
+    AU.addRequired<ScalarEvolutionWrapperPass>();
   }
+  /*
+   void getAnalysisUsage(AnalysisUsage &AU) const {
+   AU.addRequiredTransitive<TargetLibraryInfoWrapperPass>();
+   AU.addRequiredTransitive<AAResultsWrapperPass>();
+   AU.addRequiredTransitive<LoopInfoWrapperPass>();
+   AU.addRequiredTransitive<ScalarEvolutionWrapperPass>();
+   }
+   */
+
+  StringRef getPassName() const { return "MPI Assertion Analysis"; }
 
   // Pass starts here
   virtual bool runOnModule(Module &M) {
@@ -82,20 +99,9 @@ struct MSGOrderRelaxCheckerPass : public ModulePass {
       return false;
     }
 
-    // give it any function, the Function is not used at all
-    // dont know why the api has changed here...
-    TargetLibraryInfo *TLI =
-        &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(
-            *mpi_func->mpi_init);
+    analysis_results = new RequiredAnalysisResults(this);
 
-    for (auto &func : M) {
-      if (!func.isDeclaration()) {
-        auto *result = &getAnalysis<AAResultsWrapperPass>(func).getAAResults();
-        AA.insert(std::make_pair(&func, result));
-      }
-    }
-
-    function_metadata = new FunctionMetadata(TLI, M);
+    function_metadata = new FunctionMetadata(analysis_results->getTLI(), M);
 
     mpi_implementation_specifics = new ImplementationSpecifics(M);
 
@@ -105,9 +111,30 @@ struct MSGOrderRelaxCheckerPass : public ModulePass {
     std::vector<std::pair<llvm::CallBase *, llvm::CallBase *>> recv_conflicts =
         check_mpi_recv_conflicts(M);
 
-    if (!send_conflicts.empty() || !recv_conflicts.empty())
+    if (!send_conflicts.empty() || !recv_conflicts.empty()) {
+      /*
+          if (!send_conflicts.empty()) {
+                  errs() << "send conflicts\n";
+                  for (auto conflict : send_conflicts) {
+                                                          conflict.first->dump();
+                                                          conflict.second->dump();
+                                                          errs()
+<< "\n";
+                                                  }
+          }
+          if (!recv_conflicts.empty()) {
+                  errs() << "recv conflicts\n";
+
+                  for (auto conflict : recv_conflicts) {
+                          conflict.first->dump();
+                          conflict.second->dump();
+                          errs() << "\n";
+                  }
+          }
+          */
+
       errs() << "Message race conflicts detected\n";
-    else {
+    } else {
       errs() << "No conflicts detected, try to use mpi_assert_allow_overtaking "
                 "for better performance\n";
     }
@@ -130,12 +157,13 @@ struct MSGOrderRelaxCheckerPass : public ModulePass {
     errs() << "Successfully executed the pass\n\n";
     delete mpi_func;
     delete mpi_implementation_specifics;
+    delete analysis_results;
 
     delete function_metadata;
 
     return false;
   }
-};
+}; // class MSGOrderRelaxCheckerPass
 } // namespace
 
 char MSGOrderRelaxCheckerPass::ID = 42;

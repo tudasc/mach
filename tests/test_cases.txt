@@ -22,6 +22,7 @@ tests/hidden_in_functions/send.c conflict NO_any_tag NO_any_source exact_length
 tests/hidden_in_functions/send_2.c conflict NO_any_tag NO_any_source exact_length
 tests/hidden_in_functions/bar.c no NO_any_tag NO_any_source exact_length
 tests/complex/stencil_allreduce.c conflict NO_any_tag NO_any_source exact_length
+tests/complex/stencil_allreduce_2.c no NO_any_tag NO_any_source exact_length
 tests/complex/stencil_iterations.c conflict NO_any_tag NO_any_source exact_length
 tests/complex/stencil_iterations_correct.c no NO_any_tag NO_any_source exact_length
 tests/complex/gather_results.c no NO_any_tag NO_any_source exact_length
@@ -40,3 +41,8 @@ tests/more_msg/waitall_bar_2.c no NO_any_tag NO_any_source exact_length
 tests/more_msg/waitall_bar_3.c conflict NO_any_tag NO_any_source exact_length
 tests/one_message_not_matching_length.c no NO_any_tag NO_any_source NO_exact_length
 tests/more_msg/not_matching_length.c conflict any_tag NO_any_source NO_exact_length
+tests/complex/gather_bcast.c no NO_any_tag NO_any_source exact_length
+tests/complex/heated-plate_while.c no NO_any_tag NO_any_source exact_length
+tests/complex/heated-plate_while_2.c no NO_any_tag NO_any_source exact_length
+tests/complex/heated-plate.c conflict NO_any_tag NO_any_source exact_length
+tests/complex/heated-plate_2.c no NO_any_tag NO_any_source exact_length
