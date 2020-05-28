@@ -1,7 +1,7 @@
 MPI Assertion checking
 =======
 
-This clang Pass allows to check if the assertions defined in section 6.4.4 of the upcoming MPI standard \[[MPI19](#ref-mpi2019)\ hold for an application.
+This clang Pass allows to check if the assertions defined in section 6.4.4 of the upcoming MPI standard \[[MPI19](#ref-mpi2019)\] hold for an application.
 
 Building
 -----------
